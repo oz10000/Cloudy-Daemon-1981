@@ -1,0 +1,77 @@
+name: 1981 DAEMON 24/7
+
+on:
+  schedule:
+    - cron: "0 */5 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daemon-1981
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-daemon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - run: mkdir -p data/logs data/state data/snapshots
+
+      - name: Download previous state
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: daemon_24_7.yml
+          name: daemon-state
+          path: artifact_restore
+          check_artifacts: true
+          search_artifacts: true
+
+      - name: Restore state
+        if: success()
+        run: |
+          if [ -d artifact_restore/data/state ]; then
+            cp -r artifact_restore/data/state/* data/state/ 2>/dev/null || true
+          fi
+          if [ -d artifact_restore/data/snapshots ]; then
+            cp -r artifact_restore/data/snapshots/* data/snapshots/ 2>/dev/null || true
+          fi
+
+      - name: Run Daemon
+        run: python src/main.py --mode demo
+        env:
+          OKX_API_KEY: ${{ secrets.OKX_API_KEY }}
+          OKX_SECRET_KEY: ${{ secrets.OKX_SECRET_KEY }}
+          OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
+          OKX_DEMO: ${{ secrets.OKX_DEMO || '1' }}
+
+      - name: Upload state
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daemon-state
+          path: |
+            data/state/
+            data/snapshots/
+            data/logs/
+          retention-days: 30
+
+      - name: Persist state to repository
+        if: always()
+        run: |
+          git config user.email "bot@1981.daemon"
+          git config user.name "Daemon1981Bot"
+          git add data/state/ data/snapshots/ 2>/dev/null || true
+          git commit -m " Update state $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes"
+          git push origin HEAD:main
