@@ -1,0 +1,48 @@
+mode: standalone
+heartbeat_interval: 60
+
+persistence:
+  path: ./data/state/daemon.db
+  backup_interval: 300
+
+exchanges:
+  primary: simulator
+  pool:
+    - simulator
+    - binance
+    - bybit
+    - okx
+
+signal_source:
+  type: file
+  path: ./data/signals/signals.json
+  refresh_interval: 5
+  consume_on_read: true
+
+risk:
+  max_positions: 3
+  risk_per_trade: 0.01
+  max_daily_loss: 0.05
+  max_drawdown: 0.10
+  max_exposure: 0.20
+
+certification:
+  enabled: true
+  mock_enabled: true
+  demo_enabled: true
+
+repair:
+  enabled: true
+  max_retries: 3
+
+logging:
+  level: INFO
+  file: ./data/logs/daemon.log
+  format: json
+  max_bytes: 10485760
+  backup_count: 5
+  console: true
+
+telemetry:
+  enabled: false
+  endpoint: ""
