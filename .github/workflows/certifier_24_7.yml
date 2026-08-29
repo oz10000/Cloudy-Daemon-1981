@@ -1,0 +1,49 @@
+name: 1981 DAEMON Certifier 24/7
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Modo (FULL o CONTINUOUS)'
+        required: true
+        default: 'CONTINUOUS'
+
+concurrency:
+  group: daemon-certifier
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - name: Run Certifier
+        run: python src/certification/certifier.py
+        env:
+          OKX_API_KEY: ${{ secrets.OKX_API_KEY }}
+          OKX_SECRET_KEY: ${{ secrets.OKX_SECRET_KEY }}
+          OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
+          OKX_DEMO: ${{ secrets.OKX_DEMO || '1' }}
+          CERTIFIER_MODE: ${{ github.event.inputs.mode || 'CONTINUOUS' }}
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: certification-report-${{ github.run_id }}
+          path: certification_report.log
+          retention-days: 30
