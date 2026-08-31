@@ -1,6 +1,4 @@
 # src/exchanges/base.py
-"""Base Exchange Adapter — Interfaz abstracta para exchanges"""
-
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
@@ -47,6 +45,16 @@ class ExchangeCapabilities:
     rate_limit_per_minute: int = 1200
 
 class ExchangeAdapter(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def version(self) -> str:
+        pass
+
     @abstractmethod
     async def get_price(self, symbol: str) -> float:
         pass
