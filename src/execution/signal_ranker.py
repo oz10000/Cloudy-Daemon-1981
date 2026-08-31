@@ -42,7 +42,7 @@ class SignalRanker:
             scored.append({**s, 'rank_score': score})
 
         scored.sort(key=lambda x: x['rank_score'], reverse=True)
-        self.logger.debug("RANKER", f"Señales ordenadas: {[(s['symbol'], s['rank_score']) for s in scored]}")
+        self.logger.debug(f"RANKER — Señales ordenadas: {[(s['symbol'], s['rank_score']) for s in scored]}")
         return scored
 
     def select_best(self, signals: List[Dict]) -> Dict:
