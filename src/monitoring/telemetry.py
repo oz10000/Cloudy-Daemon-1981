@@ -1,11 +1,10 @@
 # src/monitoring/telemetry.py
-"""Telemetry — Envío de métricas a sistemas externos"""
-
 import json
 import os
 from datetime import datetime
 from typing import Dict, Any, Optional
 from src.utils.logger import get_logger
+
 
 class Telemetry:
     def __init__(self, config: Dict):
@@ -16,9 +15,8 @@ class Telemetry:
         self.last_timestamp = None
 
     def record_event(self, event_name: str, data: Optional[Dict] = None):
-        """Registra un evento en el log."""
         if self.enabled:
-            self.logger.info("TELEMETRY", f"Evento: {event_name}", extra={'data': data})
+            self.logger.info(f"TELEMETRY — Evento: {event_name}")
         self.last_timestamp = datetime.now().isoformat()
 
     def record_heartbeat(self, pulse: Dict):
