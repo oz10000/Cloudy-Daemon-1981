@@ -25,28 +25,23 @@ class RiskEngine:
         self._healthy = True
 
     async def health(self) -> Dict[str, Any]:
-        """Retorna el estado de salud del motor de riesgo."""
         return {
             'status': 'ok' if self._healthy else 'error',
             'max_positions': self.max_positions,
-            'current_exposure': 0.0,  # se actualiza en tiempo de ejecución
+            'current_exposure': 0.0,
             'daily_pnl': self.daily_pnl,
             'day_start': self.day_start.isoformat()
         }
 
     async def test(self) -> Dict[str, Any]:
-        """Ejecuta pruebas básicas del RiskEngine."""
         passed = 0
         total = 3
         try:
-            # Test 1: cálculo de tamaño con valores válidos
             size = self.calculate_size(10000, 100, 95)
             if size > 0:
                 passed += 1
-            # Test 2: límites configurados correctamente
             if self.max_positions > 0 and self.risk_per_trade > 0:
                 passed += 1
-            # Test 3: health check
             health = await self.health()
             if health.get('status') == 'ok':
                 passed += 1
@@ -55,34 +50,28 @@ class RiskEngine:
         return {'passed': passed, 'total': total, 'errors': [] if passed == total else ['Alguna prueba falló']}
 
     def can_open_position(self, signal: Dict, position_manager=None) -> bool:
-        """Verifica si se puede abrir una nueva posición según las reglas de riesgo."""
         if position_manager:
             open_positions = position_manager.get_open()
             if len(open_positions) >= self.max_positions:
                 self.logger.warning(f"RISK — Máximo de posiciones alcanzado: {self.max_positions}")
                 return False
-
             total_exposure = sum(p.amount * p.mark_price for p in open_positions)
             balance = 10000  # En producción se obtiene del exchange
             exposure_pct = total_exposure / balance if balance > 0 else 0
             if exposure_pct > self.max_exposure:
                 self.logger.warning(f"RISK — Exposición excedida: {exposure_pct:.2%} > {self.max_exposure:.2%}")
                 return False
-
         current_drawdown = 0.0
         if current_drawdown > self.max_drawdown:
             self.logger.warning(f"RISK — Drawdown excedido: {current_drawdown:.2%} > {self.max_drawdown:.2%}")
             return False
-
         if abs(self.daily_pnl) > self.max_daily_loss * 10000:
             self.logger.warning(f"RISK — Pérdida diaria excedida: {self.daily_pnl:.2f}")
             return False
-
         score = signal.get('score', 0)
         if score < 0.3:
             self.logger.warning(f"RISK — Score bajo: {score:.2f}")
             return False
-
         return True
 
     def calculate_size(self, capital: float, entry: float, sl: float) -> float:
