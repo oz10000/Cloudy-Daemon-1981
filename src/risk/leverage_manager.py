@@ -15,7 +15,6 @@ class LeverageManager:
         atr_pct = signal.get('atr_pct', 0.02)
         confidence = signal.get('confidence', 50)
 
-        # Base por nivel
         base = {
             'S-TIER': 4,
             'A-TIER': 3,
@@ -24,7 +23,6 @@ class LeverageManager:
         }
         leverage = base.get(level, 1)
 
-        # Ajuste por régimen
         if regime == 'Chop':
             leverage = min(leverage, 1)
         elif regime == 'Tendencia Débil':
@@ -34,18 +32,16 @@ class LeverageManager:
         elif regime == 'Expansión':
             leverage = min(leverage, 5)
 
-        # Ajuste por volatilidad (ATR)
         if atr_pct > 0.03:  # Volatilidad alta
             leverage = max(1, leverage - 1)
         elif atr_pct < 0.01:  # Volatilidad baja
             leverage = min(self.max_leverage, leverage + 1)
 
-        # Ajuste por confianza
         if confidence < 60:
             leverage = max(1, leverage - 1)
         elif confidence > 80:
             leverage = min(self.max_leverage, leverage + 1)
 
         final_leverage = max(self.min_leverage, min(self.max_leverage, leverage))
-        self.logger.debug("LEVERAGE", f"Nivel: {level}, Régimen: {regime}, ATR: {atr_pct:.2%} → Leverage: {final_leverage}x")
+        self.logger.debug(f"LEVERAGE — Nivel: {level}, Régimen: {regime}, ATR: {atr_pct:.2%} → Leverage: {final_leverage}x")
         return final_leverage
