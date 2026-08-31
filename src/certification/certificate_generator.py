@@ -1,13 +1,10 @@
 # src/certification/certificate_generator.py
-"""Generación de certificado final en Markdown"""
-
 from datetime import datetime
-from typing import Dict, List
+from typing import List, Dict
 
 class CertificateGenerator:
     @staticmethod
     def generate_report(certificates: List[Dict]) -> str:
-        """Genera un reporte Markdown con los resultados de certificación."""
         lines = [
             "# 1981 DAEMON Ω V3 — CERTIFICACIÓN FINAL",
             "",
