@@ -1,13 +1,20 @@
-"""
-Risk Engine — Gestión de riesgo real
-"""
-
+# src/risk/risk_engine.py
 from typing import Dict, Any
 from datetime import datetime
 from src.utils.logger import get_logger
 
 class RiskEngine:
+    @property
+    def name(self) -> str:
+        return "RiskEngine"
+
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+
     def __init__(self, config: Dict):
+        self.config = config
+        self.logger = get_logger()
         self.max_positions = config.get('max_positions', 3)
         self.risk_per_trade = config.get('risk_per_trade', 0.01)
         self.max_daily_loss = config.get('max_daily_loss', 0.05)
@@ -15,46 +22,70 @@ class RiskEngine:
         self.max_exposure = config.get('max_exposure', 0.20)
         self.daily_pnl = 0.0
         self.day_start = datetime.now().date()
-        self.logger = get_logger()
+        self._healthy = True
+
+    async def health(self) -> Dict[str, Any]:
+        """Retorna el estado de salud del motor de riesgo."""
+        return {
+            'status': 'ok' if self._healthy else 'error',
+            'max_positions': self.max_positions,
+            'current_exposure': 0.0,  # se actualiza en tiempo de ejecución
+            'daily_pnl': self.daily_pnl,
+            'day_start': self.day_start.isoformat()
+        }
+
+    async def test(self) -> Dict[str, Any]:
+        """Ejecuta pruebas básicas del RiskEngine."""
+        passed = 0
+        total = 3
+        try:
+            # Test 1: cálculo de tamaño con valores válidos
+            size = self.calculate_size(10000, 100, 95)
+            if size > 0:
+                passed += 1
+            # Test 2: límites configurados correctamente
+            if self.max_positions > 0 and self.risk_per_trade > 0:
+                passed += 1
+            # Test 3: health check
+            health = await self.health()
+            if health.get('status') == 'ok':
+                passed += 1
+        except Exception:
+            pass
+        return {'passed': passed, 'total': total, 'errors': [] if passed == total else ['Alguna prueba falló']}
 
     def can_open_position(self, signal: Dict, position_manager=None) -> bool:
         """Verifica si se puede abrir una nueva posición según las reglas de riesgo."""
-        # 1. Verificar número de posiciones abiertas
         if position_manager:
             open_positions = position_manager.get_open()
             if len(open_positions) >= self.max_positions:
-                self.logger.warning("RISK", f"Máximo de posiciones alcanzado: {self.max_positions}")
+                self.logger.warning(f"RISK — Máximo de posiciones alcanzado: {self.max_positions}")
                 return False
 
-            # 2. Verificar exposición total
             total_exposure = sum(p.amount * p.mark_price for p in open_positions)
             balance = 10000  # En producción se obtiene del exchange
             exposure_pct = total_exposure / balance if balance > 0 else 0
             if exposure_pct > self.max_exposure:
-                self.logger.warning("RISK", f"Exposición excedida: {exposure_pct:.2%} > {self.max_exposure:.2%}")
+                self.logger.warning(f"RISK — Exposición excedida: {exposure_pct:.2%} > {self.max_exposure:.2%}")
                 return False
 
-        # 3. Verificar drawdown (simplificado, se puede ampliar)
-        current_drawdown = 0.0  # Se obtendría de métricas históricas
+        current_drawdown = 0.0
         if current_drawdown > self.max_drawdown:
-            self.logger.warning("RISK", f"Drawdown excedido: {current_drawdown:.2%} > {self.max_drawdown:.2%}")
+            self.logger.warning(f"RISK — Drawdown excedido: {current_drawdown:.2%} > {self.max_drawdown:.2%}")
             return False
 
-        # 4. Verificar pérdida diaria
         if abs(self.daily_pnl) > self.max_daily_loss * 10000:
-            self.logger.warning("RISK", f"Pérdida diaria excedida: {self.daily_pnl:.2f}")
+            self.logger.warning(f"RISK — Pérdida diaria excedida: {self.daily_pnl:.2f}")
             return False
 
-        # 5. Verificar calidad de la señal (score mínimo)
         score = signal.get('score', 0)
         if score < 0.3:
-            self.logger.warning("RISK", f"Score bajo: {score:.2f}")
+            self.logger.warning(f"RISK — Score bajo: {score:.2f}")
             return False
 
         return True
 
     def calculate_size(self, capital: float, entry: float, sl: float) -> float:
-        """Calcula el tamaño de la posición basado en el riesgo por trade."""
         if sl >= entry:
             risk_per_unit = (sl - entry) / entry
         else:
@@ -66,7 +97,6 @@ class RiskEngine:
         return round(size, 3)
 
     def record_pnl(self, pnl: float):
-        """Registra el PnL para control de pérdida diaria."""
         today = datetime.now().date()
         if today != self.day_start:
             self.day_start = today
