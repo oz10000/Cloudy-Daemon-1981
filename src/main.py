@@ -3,18 +3,21 @@
 1981 DAEMON Ω V3 — Punto de entrada principal
 """
 
-import asyncio
-import argparse
 import sys
 import os
 
+# Añadir el directorio raíz al PYTHONPATH para que 'src' sea reconocido
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import asyncio
+import argparse
 from src.core.daemon import Daemon1981Omega
 from src.utils.config_loader import load_config
 from src.utils.logger import setup_logger, get_logger
 
 async def main():
     parser = argparse.ArgumentParser(description="1981 DAEMON Ω V3")
-    parser.add_argument('--mode', default='standalone', 
+    parser.add_argument('--mode', default='standalone',
                         choices=['standalone', 'demo', 'live', 'simulation'],
                         help="Modo de ejecución")
     parser.add_argument('--config', default='./config/config.yaml',
@@ -23,26 +26,26 @@ async def main():
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                         help="Nivel de logging")
     args = parser.parse_args()
-    
+
     # Cargar configuración
     config = load_config(args.config)
     config['mode'] = args.mode
     if 'logging' not in config:
         config['logging'] = {}
     config['logging']['level'] = args.log_level
-    
+
     # Configurar logger
     logger = setup_logger(config.get('logging', {}))
     logger.info("BOOT", "1981 DAEMON Ω V3 iniciando...")
     logger.info("BOOT", f"Modo: {args.mode}")
-    
+
     # Verificar modo live (seguridad)
     if args.mode == 'live':
         confirmation = input("⚠️  MODO LIVE DETECTADO. ¿Estás seguro? (yes/no): ")
         if confirmation.lower() != 'yes':
             logger.info("BOOT", "Abortando inicio en modo live")
             sys.exit(0)
-    
+
     # Iniciar daemon
     try:
         daemon = Daemon1981Omega(config)
