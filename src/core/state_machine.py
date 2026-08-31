@@ -1,7 +1,4 @@
-"""
-State Machine — Máquina de estados mejorada con history y events
-"""
-
+# src/core/state_machine.py
 from enum import Enum, auto
 from typing import List, Optional, Dict, Any, Set
 from datetime import datetime
@@ -24,7 +21,6 @@ class State(Enum):
     UNKNOWN = auto()
 
 class StateEvent(Enum):
-    """Eventos que disparan transiciones."""
     START = "start"
     STOP = "stop"
     PAUSE = "pause"
@@ -38,11 +34,6 @@ class StateEvent(Enum):
     RESET = "reset"
 
 class StateMachine:
-    """
-    Máquina de estados con transiciones validadas, historial,
-    callbacks y soporte para eventos.
-    """
-    
     def __init__(self):
         self.logger = get_logger()
         self._state = State.BOOT
@@ -55,7 +46,6 @@ class StateMachine:
         self._event_handlers: Dict[StateEvent, List[callable]] = {}
 
     def _build_transition_map(self) -> Dict[State, Set[State]]:
-        """Construye el mapa de transiciones válidas."""
         return {
             State.BOOT: {State.INIT, State.SELF_TEST, State.ERROR},
             State.INIT: {State.SELF_TEST, State.STANDALONE, State.ERROR},
@@ -74,25 +64,22 @@ class StateMachine:
         }
 
     def register_callback(self, state: State, callback: callable):
-        """Registra un callback para entrada a un estado."""
         if state not in self._callbacks:
             self._callbacks[state] = []
         self._callbacks[state].append(callback)
 
     def register_event_handler(self, event: StateEvent, handler: callable):
-        """Registra un handler para un evento."""
         if event not in self._event_handlers:
             self._event_handlers[event] = []
         self._event_handlers[event].append(handler)
 
     def transition_to(self, new_state: State, data: Optional[Dict] = None) -> bool:
-        """Transiciona a un nuevo estado."""
         if new_state == self._state:
-            self.logger.debug("STATE", f"Ya en {new_state.name}, ignorando")
+            self.logger.debug(f"STATE — Ya en {new_state.name}, ignorando")
             return True
 
         if not self.can_transition(new_state):
-            self.logger.warning("STATE", f"Transición inválida: {self._state.name} -> {new_state.name}")
+            self.logger.warning(f"STATE — Transición inválida: {self._state.name} -> {new_state.name}")
             return False
 
         old_state = self._state
@@ -106,23 +93,20 @@ class StateMachine:
         if len(self._history) > 100:
             self._history.pop(0)
 
-        self.logger.info("STATE", f"Transición: {old_state.name} -> {new_state.name}")
+        self.logger.info(f"STATE — Transición: {old_state.name} -> {new_state.name}")
 
-        # Ejecutar callbacks
         if new_state in self._callbacks:
             for callback in self._callbacks[new_state]:
                 try:
                     callback(self, old_state, new_state, data)
                 except Exception as e:
-                    self.logger.error("STATE", f"Callback falló para {new_state.name}: {e}")
+                    self.logger.error(f"STATE — Callback falló para {new_state.name}: {e}")
 
         return True
 
     def handle_event(self, event: StateEvent, data: Optional[Dict] = None) -> bool:
-        """Maneja un evento y realiza la transición correspondiente."""
-        self.logger.debug("STATE", f"Evento: {event.value}")
+        self.logger.debug(f"STATE — Evento: {event.value}")
 
-        # Mapeo de eventos a estados
         event_map = {
             StateEvent.START: State.CONNECTING,
             StateEvent.STOP: State.SHUTDOWN,
@@ -139,23 +123,21 @@ class StateMachine:
 
         new_state = event_map.get(event)
         if not new_state:
-            self.logger.warning("STATE", f"Evento no mapeado: {event}")
+            self.logger.warning(f"STATE — Evento no mapeado: {event}")
             return False
 
         result = self.transition_to(new_state, data)
 
-        # Ejecutar handlers de eventos
         if event in self._event_handlers:
             for handler in self._event_handlers[event]:
                 try:
                     handler(self, event, data)
                 except Exception as e:
-                    self.logger.error("STATE", f"EventHandler falló para {event.value}: {e}")
+                    self.logger.error(f"STATE — EventHandler falló para {event.value}: {e}")
 
         return result
 
     def can_transition(self, new_state: State) -> bool:
-        """Verifica si la transición es válida."""
         return new_state in self._transition_map.get(self._state, set())
 
     def get_state(self) -> State:
