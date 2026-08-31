@@ -25,6 +25,7 @@ from src.execution.reconciliation import Reconciliation
 
 from src.risk.risk_engine import RiskEngine
 from src.risk.emergency_stop import EmergencyStop, EmergencyStopReason
+from src.risk.leverage_manager import LeverageManager
 
 from src.exchanges.base import ExchangeFactory
 
@@ -42,11 +43,11 @@ from src.utils.logger import get_logger, setup_logger
 
 class Daemon1981Omega:
     """Daemon principal del sistema 1981 Ω V3."""
-    
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.logger = get_logger()
-        
+
         # Core
         self.state_machine = StateMachine()
         self.lifecycle = LifecycleManager()
@@ -54,28 +55,29 @@ class Daemon1981Omega:
         self.shutdown_manager = ShutdownManager()
         self.event_loop = EventLoopManager()
         self.running = True
-        
+
         # Persistencia
         self.store = SQLiteStore(config.get('persistence', {}))
         self.snapshot_manager = SnapshotManager(self.store)
         self.recovery = RecoveryManager(self.store, self.snapshot_manager)
-        
+
         # Monitoreo
         self.heartbeat = Heartbeat(config.get('heartbeat_interval', 60))
         self.metrics = MetricsCollector()
         self.telemetry = Telemetry(config.get('telemetry', {}))
-        
+
         # Exchange
         exchange_config = config.get('exchanges', {})
         self.exchange = ExchangeFactory.create(
-            exchange_config.get('primary', 'simulator'), 
+            exchange_config.get('primary', 'simulator'),
             exchange_config
         )
-        
+
         # Riesgo
         self.risk_engine = RiskEngine(config.get('risk', {}))
         self.emergency_stop = EmergencyStop()
-        
+        self.leverage_manager = LeverageManager(config.get('leverage', {}))
+
         # Ejecución
         self.order_manager = OrderManager()
         self.position_manager = PositionManager()
@@ -84,19 +86,19 @@ class Daemon1981Omega:
         self.execution_engine = ExecutionEngine(
             self.exchange, self.order_manager, self.position_manager, self.risk_engine
         )
-        
+
         # DAPS
         self.anomaly_engine = AnomalyEngine()
-        
+
         # Reparación
         self.repair_engine = RepairEngine(config.get('repair', {}))
-        
+
         # Certificación
         self.certifier = Certifier(config.get('certification', {}))
-        
+
         # Tareas
         self.tasks: List[asyncio.Task] = []
-        
+
         # Señales
         self.shutdown_manager.register_signal_handlers()
         self.shutdown_manager.register_hook("save_state", self._save_final_state, priority=1)
@@ -108,13 +110,13 @@ class Daemon1981Omega:
         self.state_machine.transition_to(State.BOOT)
         self.lifecycle.transition_to(LifecycleState.BOOT)
         self.telemetry.record_event("daemon_started")
-        
+
         # Inicializar
         await self._init_components()
-        
+
         # Iniciar supervisor
         await self.supervisor.start()
-        
+
         # Registrar tareas en el supervisor
         task_coros = [
             ("heartbeat", self._heartbeat_task),
@@ -125,12 +127,12 @@ class Daemon1981Omega:
             ("monitor", self._monitor_task),
             ("repair", self._repair_task)
         ]
-        
+
         for name, coro in task_coros:
             task = asyncio.create_task(self.supervisor.wrap_task(name, coro()))
             self.supervisor.register_task(name, task)
             self.tasks.append(task)
-        
+
         # Esperar shutdown
         await self.shutdown_manager.wait_for_shutdown_async()
 
@@ -139,25 +141,25 @@ class Daemon1981Omega:
         self.logger.info("INIT", "Inicializando componentes...")
         self.state_machine.transition_to(State.INIT)
         self.lifecycle.transition_to(LifecycleState.INIT)
-        
+
         # Recuperar estado anterior
         snapshot = await self.recovery.recover()
         if snapshot:
             await self.position_manager.restore(snapshot.get('positions', []))
             await self.order_manager.restore(snapshot.get('orders', []))
             self.logger.info("INIT", f"Estado restaurado: {len(snapshot.get('positions', []))} posiciones")
-        
+
         # Self-test
         if not await self._self_test():
             self.logger.error("INIT", "Self-test fallido")
             self.state_machine.transition_to(State.ERROR)
             self.lifecycle.transition_to(LifecycleState.ERROR)
             raise RuntimeError("Self-test fallido")
-        
+
         # Certificar
         if self.config.get('certification', {}).get('enabled', True):
             await self._certify_modules()
-        
+
         self.state_machine.transition_to(State.STANDALONE)
         self.lifecycle.transition_to(LifecycleState.STANDALONE)
         self.logger.info("INIT", "Sistema listo en modo STANDALONE")
@@ -167,19 +169,19 @@ class Daemon1981Omega:
         self.logger.info("SELFTEST", "Ejecutando self-test...")
         self.state_machine.transition_to(State.SELF_TEST)
         self.lifecycle.transition_to(LifecycleState.SELF_TEST)
-        
+
         try:
             # Probar almacenamiento
             await self.store.save_state({'test': 'ok'})
             test = await self.store.load_state()
             if test.get('test') != 'ok':
                 raise RuntimeError("Persistencia falló")
-            
+
             # Probar exchange
             health = await self.exchange.health_check()
             if not health.is_connected:
                 raise RuntimeError("Exchange no conectado")
-            
+
             self.logger.info("SELFTEST", "Self-test completado")
             return True
         except Exception as e:
@@ -191,7 +193,7 @@ class Daemon1981Omega:
         self.logger.info("CERTIFY", "Certificando módulos...")
         self.state_machine.transition_to(State.CERTIFY)
         self.lifecycle.transition_to(LifecycleState.CERTIFY)
-        
+
         modules = [
             ('exchange', self.exchange),
             ('risk_engine', self.risk_engine),
@@ -199,18 +201,18 @@ class Daemon1981Omega:
             ('signal_engine', self.signal_engine),
             ('repair_engine', self.repair_engine)
         ]
-        
+
         for name, module in modules:
             result = await self.certifier.certify_module(module)
             if not result['certified']:
                 self.logger.error("CERTIFY", f"Fallo certificación de {name}: {result}")
                 raise RuntimeError(f"Certificación fallida para {name}")
             self.logger.info("CERTIFY", f"{name} certificado (score={result['score']:.1f}%)")
-        
+
         self.logger.info("CERTIFY", "Todos los módulos certificados")
 
     # --- Tareas periódicas ---
-    
+
     async def _heartbeat_task(self):
         while self.running:
             pulse = await self.heartbeat.pulse()
@@ -224,12 +226,15 @@ class Daemon1981Omega:
             if self.emergency_stop.is_active():
                 await asyncio.sleep(1)
                 continue
-            
+
             signals = await self.signal_engine.read_signals()
             for signal in signals:
                 if self.emergency_stop.is_active():
                     break
-                if self.risk_engine.can_open_position(signal):
+                # Aplicar apalancamiento dinámico
+                leverage = self.leverage_manager.get_optimal_leverage(signal)
+                signal['leverage'] = leverage
+                if self.risk_engine.can_open_position(signal, self.position_manager):
                     result = await self.execution_engine.execute(signal)
                     self.telemetry.record_order(result)
                 else:
@@ -239,9 +244,12 @@ class Daemon1981Omega:
     async def _execution_task(self):
         while self.running:
             await self.execution_engine.process_pending_orders()
-            await self.position_manager.update_prices(
-                'BTCUSDT', await self.exchange.get_price('BTCUSDT')
-            )
+            if hasattr(self.exchange, 'get_price'):
+                try:
+                    price = await self.exchange.get_price('BTCUSDT')
+                    await self.position_manager.update_prices('BTCUSDT', price, self.exchange)
+                except Exception as e:
+                    self.logger.warning("EXEC", f"Error actualizando precios: {e}")
             await self.execution_engine.check_exits()
             await asyncio.sleep(1)
 
@@ -279,7 +287,7 @@ class Daemon1981Omega:
             await asyncio.sleep(30)
 
     # --- Hooks de apagado ---
-    
+
     async def _save_final_state(self):
         self.logger.info("SHUTDOWN", "Guardando estado final...")
         await self.store.save_state({
