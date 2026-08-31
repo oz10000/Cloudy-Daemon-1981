@@ -36,11 +36,9 @@ class ExecutionEngine:
         passed = 0
         total = 2
         try:
-            # Test validación de señal
             valid_signal = {'symbol': 'BTCUSDT', 'direction': 'LONG', 'entry_price': 60000, 'sl_price': 59000, 'tp_price': 61000}
             if self._validate_signal(valid_signal):
                 passed += 1
-            # Test health
             health = await self.health()
             if health.get('status') == 'ok':
                 passed += 1
@@ -49,8 +47,55 @@ class ExecutionEngine:
         return {'passed': passed, 'total': total, 'errors': [] if passed == total else ['Alguna prueba falló']}
 
     async def execute(self, signal: Dict) -> Dict:
-        # ... (código sin cambios, ya está bien)
-        pass
+        symbol = signal['symbol']
+        direction = signal['direction']
+        entry_price = signal.get('entry_price', 0)
+        tp = signal.get('tp_price', 0)
+        sl = signal.get('sl_price', 0)
+        confidence = signal.get('confidence', 0)
+        leverage = signal.get('leverage', 1)
+
+        self.logger.info(f"EXEC — Ejecutando: {symbol} {direction} (confianza={confidence}, leverage={leverage}x)")
+
+        if not self._validate_signal(signal):
+            return {'status': 'rejected', 'reason': 'invalid_signal'}
+
+        balance = await self.exchange.get_balance()
+        capital = balance.get('USDT', 0)
+        amount = self.risk_engine.calculate_size(capital, entry_price, sl)
+
+        if amount <= 0:
+            self.logger.warning(f"EXEC — Tamaño inválido para {symbol}")
+            return {'status': 'rejected', 'reason': 'invalid_size'}
+
+        side = OrderSide.BUY if direction == 'LONG' else OrderSide.SELL
+        order = await self.exchange.create_order(symbol, side, OrderType.MARKET, amount)
+
+        if not order or order.get('status') in ['REJECTED', 'CANCELLED']:
+            self.logger.error(f"EXEC — Orden falló: {order}")
+            return {'status': 'failed', 'reason': 'order_rejected'}
+
+        position = await self.position_manager.add(
+            symbol=symbol,
+            direction=direction,
+            amount=amount,
+            entry_price=order.get('price', entry_price),
+            tp=tp,
+            sl=sl,
+            trailing_distance=signal.get('trailing_distance', 0.0),
+            metadata={'order_id': order.get('orderId')}
+        )
+
+        if tp:
+            side_tp = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
+            await self.exchange.set_take_profit(symbol, side_tp, amount, tp)
+
+        if sl:
+            side_sl = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
+            await self.exchange.set_stop_loss(symbol, side_sl, amount, sl)
+
+        self.logger.info(f"EXEC — Posición abierta: {symbol} {direction} @ {position.entry_price}")
+        return {'status': 'executed', 'position_id': position.id, 'order_id': order.get('orderId')}
 
     async def _validate_signal(self, signal: Dict) -> bool:
         required = ['symbol', 'direction', 'entry_price', 'sl_price', 'tp_price']
