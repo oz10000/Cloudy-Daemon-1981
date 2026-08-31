@@ -5,8 +5,6 @@
 
 import sys
 import os
-
-# Añadir el directorio raíz al PYTHONPATH para resolver imports absolutos
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
@@ -17,26 +15,12 @@ from src.utils.logger import setup_logger
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="1981 DAEMON Ω V3 — Sistema autónomo de ejecución de señales"
-    )
-    parser.add_argument(
-        '--mode',
-        default='standalone',
-        choices=['standalone', 'demo', 'live', 'simulation'],
-        help="Modo de ejecución"
-    )
-    parser.add_argument(
-        '--config',
-        default='./config/config.yaml',
-        help="Ruta al archivo de configuración YAML"
-    )
-    parser.add_argument(
-        '--log-level',
-        default='INFO',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
-        help="Nivel de detalle del logging"
-    )
+    parser = argparse.ArgumentParser(description="1981 DAEMON Ω V3")
+    parser.add_argument('--mode', default='standalone',
+                        choices=['standalone', 'demo', 'live', 'simulation'])
+    parser.add_argument('--config', default='./config/config.yaml')
+    parser.add_argument('--log-level', default='INFO',
+                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'])
     args = parser.parse_args()
 
     config = load_config(args.config)
