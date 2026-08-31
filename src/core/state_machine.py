@@ -3,6 +3,7 @@ from enum import Enum, auto
 from typing import List, Optional, Dict, Any, Set
 from datetime import datetime
 from src.utils.logger import get_logger
+import asyncio
 
 class State(Enum):
     BOOT = auto()
@@ -51,7 +52,7 @@ class StateMachine:
             State.INIT: {State.SELF_TEST, State.STANDALONE, State.ERROR},
             State.SELF_TEST: {State.CERTIFY, State.STANDALONE, State.RECOVERY, State.ERROR},
             State.CERTIFY: {State.STANDALONE, State.ERROR},
-            State.STANDALONE: {State.CONNECTING, State.PAUSED, State.SHUTDOWN, State.ERROR, State.MAINTENANCE},
+            State.STANDALONE: {State.CONNECTING, State.PAUSED, State.SHUTDOWN, State.ERROR, State.MAINTENANCE, State.LIVE},  # <--- AÑADIDO LIVE
             State.CONNECTING: {State.CONNECTED, State.RECOVERY, State.ERROR, State.SHUTDOWN},
             State.CONNECTED: {State.LIVE, State.PAUSED, State.RECOVERY, State.ERROR, State.SHUTDOWN},
             State.LIVE: {State.PAUSED, State.RECOVERY, State.ERROR, State.SHUTDOWN, State.CONNECTING},
@@ -98,7 +99,10 @@ class StateMachine:
         if new_state in self._callbacks:
             for callback in self._callbacks[new_state]:
                 try:
-                    callback(self, old_state, new_state, data)
+                    if asyncio.iscoroutinefunction(callback):
+                        asyncio.create_task(callback(self, old_state, new_state, data))
+                    else:
+                        callback(self, old_state, new_state, data)
                 except Exception as e:
                     self.logger.error(f"STATE — Callback falló para {new_state.name}: {e}")
 
@@ -106,7 +110,6 @@ class StateMachine:
 
     def handle_event(self, event: StateEvent, data: Optional[Dict] = None) -> bool:
         self.logger.debug(f"STATE — Evento: {event.value}")
-
         event_map = {
             StateEvent.START: State.CONNECTING,
             StateEvent.STOP: State.SHUTDOWN,
@@ -120,21 +123,20 @@ class StateMachine:
             StateEvent.SHUTDOWN: State.SHUTDOWN,
             StateEvent.RESET: State.BOOT
         }
-
         new_state = event_map.get(event)
         if not new_state:
             self.logger.warning(f"STATE — Evento no mapeado: {event}")
             return False
-
         result = self.transition_to(new_state, data)
-
         if event in self._event_handlers:
             for handler in self._event_handlers[event]:
                 try:
-                    handler(self, event, data)
+                    if asyncio.iscoroutinefunction(handler):
+                        asyncio.create_task(handler(self, event, data))
+                    else:
+                        handler(self, event, data)
                 except Exception as e:
                     self.logger.error(f"STATE — EventHandler falló para {event.value}: {e}")
-
         return result
 
     def can_transition(self, new_state: State) -> bool:
