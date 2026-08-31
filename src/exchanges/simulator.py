@@ -1,3 +1,4 @@
+# src/exchanges/simulator.py
 """
 Simulator Exchange — Simulador de exchange para pruebas y desarrollo
 """
@@ -15,40 +16,42 @@ from .base import (
 )
 from src.utils.logger import get_logger
 
+
 class SimulatorExchange(ExchangeAdapter):
     """
     Simulador de exchange con lógica realista de mercado.
     """
-    
+
     def __init__(self, config: Dict):
         self.config = config
-        self.logger = get_logger()
-        
+        self.logger = get_logger()  # <--- Import correcto
+
         # Balance inicial
         self.balance = {
             'USDT': config.get('initial_balance', 10000.0),
             'BTC': 0.0,
             'ETH': 0.0
         }
-        
+
         # Posiciones
         self.positions: List[Dict] = []
         self.orders: List[Dict] = []
         self.order_counter = 0
-        
+
         # Simulación de mercado
         self.symbols: Dict[str, float] = {
             'BTCUSDT': config.get('initial_btc_price', 60000.0),
             'ETHUSDT': config.get('initial_eth_price', 3000.0)
         }
-        self.volatility = config.get('volatility', 0.0005)  # 0.05% por tick
+        self.volatility = config.get('volatility', 0.0005)
         self.latency_ms = config.get('latency_ms', 10)
         self._running = True
-        
+
         # Historial de precios
         self.price_history: Dict[str, List[float]] = {}
-        
-        self.logger.info("SIMULATOR", f"Simulador iniciado con balance: {self.balance['USDT']} USDT")
+
+        # CORRECCIÓN: usar un solo argumento en logger.info
+        self.logger.info(f"SIMULATOR — Simulador iniciado con balance: {self.balance['USDT']} USDT")
 
     async def _simulate_latency(self):
         await asyncio.sleep(self.latency_ms / 1000)
@@ -58,10 +61,8 @@ class SimulatorExchange(ExchangeAdapter):
         for symbol in self.symbols:
             change = random.uniform(-self.volatility, self.volatility)
             self.symbols[symbol] *= (1 + change)
-            # Mantener precio positivo
             self.symbols[symbol] = max(self.symbols[symbol], 100.0)
-            
-            # Guardar historial
+
             if symbol not in self.price_history:
                 self.price_history[symbol] = []
             self.price_history[symbol].append(self.symbols[symbol])
@@ -81,7 +82,6 @@ class SimulatorExchange(ExchangeAdapter):
 
     async def get_positions(self) -> List[Dict]:
         await self._simulate_latency()
-        # Actualizar mark price y PnL
         for pos in self.positions:
             if pos.get('state') == 'OPEN':
                 price = self.symbols.get(pos['symbol'], 0)
@@ -97,38 +97,33 @@ class SimulatorExchange(ExchangeAdapter):
                            stop_price: Optional[float] = None) -> Dict:
         await self._simulate_latency()
         await self._update_prices()
-        
+
         self.order_counter += 1
         entry_price = self.symbols.get(symbol, 0)
-        
-        # Simular slippage
         slippage = random.uniform(-0.001, 0.001)
         execution_price = entry_price * (1 + slippage)
-        
+
         order_id = f"sim_{self.order_counter}_{uuid.uuid4().hex[:8]}"
-        
-        # Verificar balance
+
         required = amount * execution_price
         if side == OrderSide.BUY:
             if self.balance.get('USDT', 0) < required:
-                self.logger.warning("SIMULATOR", f"Balance insuficiente para comprar {amount} {symbol}")
+                self.logger.warning(f"SIMULATOR — Balance insuficiente para comprar {amount} {symbol}")
                 return {
                     'orderId': order_id,
                     'status': 'REJECTED',
                     'reason': 'insufficient_balance'
                 }
         else:
-            # Verificar posición para vender
             pos = next((p for p in self.positions if p['symbol'] == symbol and p['state'] == 'OPEN'), None)
             if not pos or pos['amount'] < amount:
-                self.logger.warning("SIMULATOR", f"Posición insuficiente para vender {amount} {symbol}")
+                self.logger.warning(f"SIMULATOR — Posición insuficiente para vender {amount} {symbol}")
                 return {
                     'orderId': order_id,
                     'status': 'REJECTED',
                     'reason': 'insufficient_position'
                 }
 
-        # Crear orden
         order = {
             'orderId': order_id,
             'symbol': symbol,
@@ -143,7 +138,6 @@ class SimulatorExchange(ExchangeAdapter):
         }
         self.orders.append(order)
 
-        # Ejecutar orden (si es MARKET)
         if order_type == OrderType.MARKET:
             if side == OrderSide.BUY:
                 self.balance['USDT'] -= amount * execution_price
@@ -152,7 +146,6 @@ class SimulatorExchange(ExchangeAdapter):
                 self.balance['USDT'] += amount * execution_price
                 self.balance[symbol.replace('USDT', '')] = self.balance.get(symbol.replace('USDT', ''), 0) - amount
 
-            # Crear posición
             self.positions.append({
                 'id': order_id,
                 'symbol': symbol,
@@ -248,4 +241,4 @@ class SimulatorExchange(ExchangeAdapter):
 
     async def close(self):
         self._running = False
-        self.logger.info("SIMULATOR", "Simulador cerrado")
+        self.logger.info("SIMULATOR — Simulador cerrado")
