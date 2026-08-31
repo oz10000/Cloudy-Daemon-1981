@@ -18,6 +18,17 @@ signal_source:
   path: ./data/signals/signals.json
   refresh_interval: 5
   consume_on_read: true
+  min_level: B-TIER
+  blocked_regimes:
+    - Chop
+  ranking:
+    signal_weights:
+      amplitude: 0.30
+      probability: 0.20
+      risk_reward: 0.20
+      volatility: 0.15
+      liquidity: 0.15
+    min_signal_score: 0.30
 
 risk:
   max_positions: 3
@@ -25,6 +36,11 @@ risk:
   max_daily_loss: 0.05
   max_drawdown: 0.10
   max_exposure: 0.20
+
+leverage:
+  base_leverage: 3
+  max_leverage: 5
+  min_leverage: 1
 
 certification:
   enabled: true
