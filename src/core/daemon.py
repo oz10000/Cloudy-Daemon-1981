@@ -106,7 +106,7 @@ class Daemon1981Omega:
     async def run(self):
         self.logger.info("DAEMON — 1981 DAEMON Ω V3 iniciando...")
         self.state_machine.transition_to(State.BOOT)
-        self.lifecycle.transition_to(LifecycleState.BOOT)
+        await self.lifecycle.transition_to(LifecycleState.BOOT)  # CORREGIDO: await
         self.telemetry.record_event("daemon_started")
 
         await self._init_components()
@@ -132,7 +132,7 @@ class Daemon1981Omega:
     async def _init_components(self):
         self.logger.info("INIT — Inicializando componentes...")
         self.state_machine.transition_to(State.INIT)
-        self.lifecycle.transition_to(LifecycleState.INIT)
+        await self.lifecycle.transition_to(LifecycleState.INIT)
 
         snapshot = await self.recovery.recover()
         if snapshot:
@@ -143,20 +143,20 @@ class Daemon1981Omega:
         if not await self._self_test():
             self.logger.error("INIT — Self-test fallido")
             self.state_machine.transition_to(State.ERROR)
-            self.lifecycle.transition_to(LifecycleState.ERROR)
+            await self.lifecycle.transition_to(LifecycleState.ERROR)
             raise RuntimeError("Self-test fallido")
 
         if self.config.get('certification', {}).get('enabled', True):
             await self._certify_modules()
 
         self.state_machine.transition_to(State.STANDALONE)
-        self.lifecycle.transition_to(LifecycleState.STANDALONE)
+        await self.lifecycle.transition_to(LifecycleState.STANDALONE)
         self.logger.info("INIT — Sistema listo en modo STANDALONE")
 
     async def _self_test(self) -> bool:
         self.logger.info("SELFTEST — Ejecutando self-test...")
         self.state_machine.transition_to(State.SELF_TEST)
-        self.lifecycle.transition_to(LifecycleState.SELF_TEST)
+        await self.lifecycle.transition_to(LifecycleState.SELF_TEST)
 
         try:
             await self.store.save_state({'test': 'ok'})
@@ -177,7 +177,7 @@ class Daemon1981Omega:
     async def _certify_modules(self):
         self.logger.info("CERTIFY — Certificando módulos...")
         self.state_machine.transition_to(State.CERTIFY)
-        self.lifecycle.transition_to(LifecycleState.CERTIFY)
+        await self.lifecycle.transition_to(LifecycleState.CERTIFY)
 
         modules = [
             ('exchange', self.exchange),
@@ -203,7 +203,7 @@ class Daemon1981Omega:
             pulse = await self.heartbeat.pulse()
             self.telemetry.record_heartbeat(pulse)
             self.state_machine.transition_to(State.LIVE)
-            self.lifecycle.transition_to(LifecycleState.LIVE)
+            await self.lifecycle.transition_to(LifecycleState.LIVE)
             await asyncio.sleep(self.heartbeat.interval)
 
     async def _signal_task(self):
