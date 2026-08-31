@@ -1,12 +1,11 @@
-"""
-Order Manager — Gestión de órdenes en memoria y persistencia
-"""
-
+# src/execution/order_manager.py
 import uuid
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass, field
 from enum import Enum
+from src.utils.logger import get_logger
+
 
 class OrderStatus(Enum):
     PENDING = "pending"
@@ -17,12 +16,13 @@ class OrderStatus(Enum):
     REJECTED = "rejected"
     EXPIRED = "expired"
 
+
 @dataclass
 class Order:
     id: str
     symbol: str
-    side: str  # 'buy' or 'sell'
-    order_type: str  # 'market', 'limit', 'stop', etc.
+    side: str
+    order_type: str
     amount: float
     price: float
     status: OrderStatus
@@ -33,9 +33,8 @@ class Order:
     exchange_order_id: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+
 class OrderManager:
-    """Administrador de órdenes."""
-    
     def __init__(self):
         self.orders: Dict[str, Order] = {}
         self.logger = get_logger()
@@ -43,7 +42,6 @@ class OrderManager:
     def create_order(self, symbol: str, side: str, order_type: str,
                      amount: float, price: float = 0.0,
                      metadata: Optional[Dict] = None) -> Order:
-        """Crea una nueva orden local."""
         order_id = f"ord_{uuid.uuid4().hex[:12]}"
         order = Order(
             id=order_id,
@@ -56,25 +54,23 @@ class OrderManager:
             metadata=metadata or {}
         )
         self.orders[order_id] = order
-        self.logger.debug("ORDER", f"Orden creada: {order_id} ({symbol} {side} {amount})")
+        self.logger.debug(f"ORDER — Orden creada: {order_id} ({symbol} {side} {amount})")
         return order
 
     def update_order(self, order_id: str, **kwargs) -> Optional[Order]:
-        """Actualiza una orden existente."""
         order = self.orders.get(order_id)
         if not order:
             return None
-        
+
         for key, value in kwargs.items():
             if hasattr(order, key):
                 setattr(order, key, value)
-        
+
         order.updated_at = datetime.now().isoformat()
-        
-        # Si el estado cambia a FILLED o CANCELLED, loguear
+
         if 'status' in kwargs:
-            self.logger.info("ORDER", f"Orden {order_id} -> {kwargs['status']}")
-        
+            self.logger.info(f"ORDER — Orden {order_id} -> {kwargs['status']}")
+
         return order
 
     def get_order(self, order_id: str) -> Optional[Order]:
@@ -93,7 +89,6 @@ class OrderManager:
         return [o for o in self.orders.values() if o.status == status]
 
     async def restore(self, orders_data: List[Dict]) -> None:
-        """Restaura órdenes desde datos guardados."""
         for data in orders_data:
             order = Order(
                 id=data['id'],
@@ -111,10 +106,9 @@ class OrderManager:
                 metadata=data.get('metadata', {})
             )
             self.orders[order.id] = order
-        self.logger.info("ORDER", f"Restauradas {len(orders_data)} órdenes")
+        self.logger.info(f"ORDER — Restauradas {len(orders_data)} órdenes")
 
     def to_dict(self) -> List[Dict]:
-        """Convierte todas las órdenes a diccionario para persistencia."""
         return [
             {
                 'id': o.id,
