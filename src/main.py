@@ -5,6 +5,7 @@
 
 import sys
 import os
+# Añadir el directorio raíz al PYTHONPATH para resolver imports absolutos
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
@@ -12,7 +13,6 @@ import argparse
 from src.core.daemon import Daemon1981Omega
 from src.utils.config_loader import load_config
 from src.utils.logger import setup_logger
-
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="1981 DAEMON Ω V3")
@@ -47,7 +47,6 @@ async def main() -> None:
     except Exception as e:
         logger.error(f"BOOT — Error fatal: {e}", exc_info=True)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
