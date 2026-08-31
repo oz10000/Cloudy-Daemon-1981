@@ -3,6 +3,7 @@ from enum import Enum, auto
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from src.utils.logger import get_logger
+import asyncio
 
 class LifecycleState(Enum):
     BOOT = auto()
@@ -29,13 +30,12 @@ class LifecycleManager:
         self._state_data: Dict[str, Any] = {}
         self._last_transition: Optional[datetime] = None
         self._transition_count: int = 0
-
         self._transitions = {
             LifecycleState.BOOT: [LifecycleState.INIT, LifecycleState.ERROR],
             LifecycleState.INIT: [LifecycleState.SELF_TEST, LifecycleState.ERROR],
             LifecycleState.SELF_TEST: [LifecycleState.CERTIFY, LifecycleState.RECOVERY, LifecycleState.ERROR],
             LifecycleState.CERTIFY: [LifecycleState.STANDALONE, LifecycleState.ERROR],
-            LifecycleState.STANDALONE: [LifecycleState.CONNECTING, LifecycleState.PAUSED, LifecycleState.SHUTDOWN, LifecycleState.ERROR],
+            LifecycleState.STANDALONE: [LifecycleState.CONNECTING, LifecycleState.PAUSED, LifecycleState.SHUTDOWN, LifecycleState.ERROR, LifecycleState.LIVE],  # <--- AÑADIDO LIVE
             LifecycleState.CONNECTING: [LifecycleState.CONNECTED, LifecycleState.RECOVERY, LifecycleState.ERROR],
             LifecycleState.CONNECTED: [LifecycleState.LIVE, LifecycleState.PAUSED, LifecycleState.RECOVERY, LifecycleState.ERROR],
             LifecycleState.LIVE: [LifecycleState.PAUSED, LifecycleState.RECOVERY, LifecycleState.SHUTDOWN, LifecycleState.ERROR],
@@ -67,7 +67,7 @@ class LifecycleManager:
         if data:
             self._state_data = data
 
-        # CORRECCIÓN: usar un solo argumento en logger.info
+        # CORREGIDO: un solo argumento
         self.logger.info(f"LIFECYCLE — Transición: {old_state.name} -> {new_state.name} (count={self._transition_count})")
 
         if new_state in self._callbacks:
