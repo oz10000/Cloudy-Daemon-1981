@@ -43,11 +43,9 @@ class SignalEngine:
         passed = 0
         total = 2
         try:
-            # Probar generación de señales demo
             demo = self._generate_demo_signals()
             if demo and len(demo) > 0:
                 passed += 1
-            # Probar health
             health = await self.health()
             if health.get('status') == 'ok':
                 passed += 1
