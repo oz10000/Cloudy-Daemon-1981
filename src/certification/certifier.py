@@ -13,9 +13,8 @@ class Certifier:
         self.certificates: List[Dict] = []
 
     async def certify_module(self, module: Any) -> Dict[str, Any]:
-        # Si el módulo no implementa ModuleContract, intentamos certificarlo por su health
+        # Si el módulo no implementa ModuleContract, certificación simplificada
         if not isinstance(module, ModuleContract):
-            # Intentamos obtener health si existe
             health = {}
             if hasattr(module, 'health_check'):
                 health = await module.health_check()
@@ -39,7 +38,7 @@ class Certifier:
                 'details': {'message': 'Certificación simplificada para módulo no contract'}
             }
 
-        # Si es un ModuleContract, proceder normalmente
+        # Si es un ModuleContract
         self.logger.info(f"CERTIFY — Certificando módulo: {module.name} v{module.version}")
         test_result = await module.test()
         health = await module.health()
