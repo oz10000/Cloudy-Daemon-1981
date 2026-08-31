@@ -1,7 +1,4 @@
-"""
-Lifecycle Manager — Gestión del ciclo de vida del sistema
-"""
-
+# src/core/lifecycle.py
 from enum import Enum, auto
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -24,11 +21,6 @@ class LifecycleState(Enum):
     UNKNOWN = auto()
 
 class LifecycleManager:
-    """
-    Administrador del ciclo de vida con estados, transiciones,
-    historial y callbacks de eventos.
-    """
-    
     def __init__(self):
         self.logger = get_logger()
         self._state = LifecycleState.BOOT
@@ -37,8 +29,7 @@ class LifecycleManager:
         self._state_data: Dict[str, Any] = {}
         self._last_transition: Optional[datetime] = None
         self._transition_count: int = 0
-        
-        # Definir transiciones válidas
+
         self._transitions = {
             LifecycleState.BOOT: [LifecycleState.INIT, LifecycleState.ERROR],
             LifecycleState.INIT: [LifecycleState.SELF_TEST, LifecycleState.ERROR],
@@ -57,16 +48,14 @@ class LifecycleManager:
         }
 
     def register_callback(self, state: LifecycleState, callback: callable):
-        """Registra un callback para un estado específico."""
         if state not in self._callbacks:
             self._callbacks[state] = []
         self._callbacks[state].append(callback)
-        self.logger.debug("LIFECYCLE", f"Callback registrado para {state.name}")
+        self.logger.debug(f"LIFECYCLE — Callback registrado para {state.name}")
 
     async def transition_to(self, new_state: LifecycleState, data: Optional[Dict] = None) -> bool:
-        """Transiciona a un nuevo estado."""
         if not self.can_transition(new_state):
-            self.logger.warning("LIFECYCLE", f"Transición inválida: {self._state.name} -> {new_state.name}")
+            self.logger.warning(f"LIFECYCLE — Transición inválida: {self._state.name} -> {new_state.name}")
             return False
 
         old_state = self._state
@@ -78,9 +67,9 @@ class LifecycleManager:
         if data:
             self._state_data = data
 
-        self.logger.info("LIFECYCLE", f"Transición: {old_state.name} -> {new_state.name} (count={self._transition_count})")
+        # CORRECCIÓN: usar un solo argumento en logger.info
+        self.logger.info(f"LIFECYCLE — Transición: {old_state.name} -> {new_state.name} (count={self._transition_count})")
 
-        # Ejecutar callbacks
         if new_state in self._callbacks:
             for callback in self._callbacks[new_state]:
                 try:
@@ -89,28 +78,23 @@ class LifecycleManager:
                     else:
                         callback(self, data)
                 except Exception as e:
-                    self.logger.error("LIFECYCLE", f"Callback falló para {new_state.name}: {e}")
+                    self.logger.error(f"LIFECYCLE — Callback falló para {new_state.name}: {e}")
 
         return True
 
     def can_transition(self, new_state: LifecycleState) -> bool:
-        """Verifica si la transición es válida."""
         return new_state in self._transitions.get(self._state, [])
 
     def get_state(self) -> LifecycleState:
-        """Retorna el estado actual."""
         return self._state
 
     def get_state_name(self) -> str:
-        """Retorna el nombre del estado actual."""
         return self._state.name
 
     def get_history(self) -> List[str]:
-        """Retorna el historial de estados."""
         return [s.name for s in self._history]
 
     def get_status(self) -> Dict[str, Any]:
-        """Retorna el estado completo del lifecycle."""
         return {
             'current_state': self._state.name,
             'history': self.get_history(),
@@ -126,9 +110,7 @@ class LifecycleManager:
         }
 
     def is_operational(self) -> bool:
-        """Verifica si el sistema está en estado operativo."""
         return self._state in [LifecycleState.LIVE, LifecycleState.CONNECTED, LifecycleState.STANDALONE]
 
     def is_safe_to_shutdown(self) -> bool:
-        """Verifica si es seguro apagar."""
         return self._state not in [LifecycleState.LIVE, LifecycleState.RECOVERY, LifecycleState.CONNECTING]
