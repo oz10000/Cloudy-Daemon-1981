@@ -19,6 +19,15 @@ class OrderType(Enum):
     TAKE_PROFIT_MARKET = "take_profit_market"
     TRAILING_STOP = "trailing_stop"
 
+class OrderStatus(Enum):
+    PENDING = "pending"
+    OPEN = "open"
+    FILLED = "filled"
+    PARTIALLY_FILLED = "partially_filled"
+    CANCELLED = "cancelled"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
 @dataclass
 class ExchangeHealth:
     latency_ms: float = 0.0
