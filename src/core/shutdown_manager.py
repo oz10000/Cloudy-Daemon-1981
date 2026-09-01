@@ -33,7 +33,7 @@ class ShutdownManager:
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
         self._signal_handlers_registered = True
-        # CORREGIDO: un solo argumento
+        # ⚠️ CORREGIDO: AHORA USA UN SOLO ARGUMENTO
         self.logger.info("SHUTDOWN: Manejadores de señales registrados")
 
     def _signal_handler(self, signum, frame):
