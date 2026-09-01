@@ -45,12 +45,12 @@ class Daemon1981:
         # Heartbeat
         self.heartbeat = Heartbeat(config.get('heartbeat_interval', 60))
 
-        # Exchange (OKX por defecto)
+        # Exchange
         exchange_config = config.get('exchange', {})
-        exchange_name = exchange_config.get('name', 'okx')
+        exchange_name = exchange_config.get('name', 'simulator')
         self.exchange = ExchangeFactory.create(exchange_name, exchange_config)
-        self.logger.info("DAEMON", f"Exchange: {exchange_name} | Testnet: {exchange_config.get('testnet', True)}")
-        self.logger.info("DAEMON", f"Leverage: {exchange_config.get('leverage', 5)}X")
+        self.logger.info("DAEMON", f"Exchange: {exchange_name}")
+        self.logger.info("DAEMON", f"Leverage: {exchange_config.get('leverage', 1)}X")
         self.logger.info("DAEMON", f"Capital usage: {exchange_config.get('capital_usage', 1.0)*100}%")
         self.logger.info("DAEMON", f"Max positions: {config.get('risk', {}).get('max_positions', 1)}")
 
@@ -132,7 +132,7 @@ class Daemon1981:
                     continue
 
                 if self.busy:
-                    self.logger.debug("Ocupado, salto ciclo")
+                    self.logger.debug("Ocupado, saltando ciclo")
                     await asyncio.sleep(5)
                     continue
 
