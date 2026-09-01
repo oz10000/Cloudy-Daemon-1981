@@ -1,3 +1,6 @@
+"""
+State Machine — Máquina de estados con historial de transiciones
+"""
 from enum import Enum, auto
 from typing import Optional, Dict
 from datetime import datetime
@@ -22,10 +25,10 @@ class StateMachine:
         self._state = DaemonState.SLEEPING
         self._history = []
 
-    def get_state(self):
+    def get_state(self) -> DaemonState:
         return self._state
 
-    def get_state_name(self):
+    def get_state_name(self) -> str:
         return self._state.name
 
     def transition_to(self, new_state: DaemonState, data: Optional[Dict] = None) -> bool:
@@ -38,13 +41,14 @@ class StateMachine:
             'data': data or {}
         }
         self._history.append(entry)
-        self.logger.info("STATE", f"{old.name} → {new_state.name}")
+        # CORREGIDO: un solo argumento
+        self.logger.info(f"STATE: {old.name} → {new_state.name}")
         return True
 
-    def get_history(self, limit=20):
+    def get_history(self, limit: int = 20) -> list:
         return self._history[-limit:]
 
-    def get_status(self):
+    def get_status(self) -> Dict:
         return {
             'current_state': self._state.name,
             'last_transition': self._history[-1] if self._history else None,
