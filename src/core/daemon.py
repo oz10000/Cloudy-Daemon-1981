@@ -155,7 +155,6 @@ class Daemon1981:
             except Exception as e:
                 self.logger.error(f"Error en bucle principal: {e}", exc_info=True)
                 self.state_machine.transition_to(DaemonState.ERROR)
-                await asyncio.sleep(10)
 
         self.logger.info("Daemon detenido")
 
