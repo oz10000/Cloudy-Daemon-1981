@@ -52,13 +52,14 @@ async def main():
         './data/backups',
     ])
 
-    logger.info("BOOT", f"1981 DAEMON Ω V4 iniciando en modo {args.mode}")
+    # CORREGIDO: un solo argumento
+    logger.info(f"BOOT: 1981 DAEMON Ω V4 iniciando en modo {args.mode}")
 
     # Advertencia para modo live
     if args.mode == 'live':
         confirmation = input("⚠️ MODO LIVE DETECTADO. ¿Estás seguro? (yes/no): ")
         if confirmation.lower() != 'yes':
-            logger.info("BOOT", "Abortado por seguridad")
+            logger.info("BOOT: Abortado por seguridad")
             sys.exit(0)
 
     # Instanciar y ejecutar daemon
@@ -66,9 +67,9 @@ async def main():
     try:
         await daemon.run()
     except KeyboardInterrupt:
-        logger.info("BOOT", "Interrupción por teclado")
+        logger.info("BOOT: Interrupción por teclado")
     except Exception as e:
-        logger.error("BOOT", f"Error fatal: {e}", exc_info=True)
+        logger.error(f"BOOT: Error fatal: {e}", exc_info=True)
         sys.exit(1)
 
 if __name__ == "__main__":
