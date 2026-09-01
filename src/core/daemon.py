@@ -31,6 +31,7 @@ class Daemon1981:
         self.logger = get_logger()
         self.running = False
         self.busy = False
+        self._initialized = False
 
         self.state_machine = StateMachine()
         self.shutdown_manager = ShutdownManager()
@@ -49,10 +50,12 @@ class Daemon1981:
         exchange_config = config.get('exchange', {})
         exchange_name = exchange_config.get('name', 'simulator')
         self.exchange = ExchangeFactory.create(exchange_name, exchange_config)
-        self.logger.info("DAEMON", f"Exchange: {exchange_name}")
-        self.logger.info("DAEMON", f"Leverage: {exchange_config.get('leverage', 1)}X")
-        self.logger.info("DAEMON", f"Capital usage: {exchange_config.get('capital_usage', 1.0)*100}%")
-        self.logger.info("DAEMON", f"Max positions: {config.get('risk', {}).get('max_positions', 1)}")
+
+        # Logging de configuración (un solo argumento)
+        self.logger.info(f"Exchange: {exchange_name}")
+        self.logger.info(f"Leverage: {exchange_config.get('leverage', 1)}X")
+        self.logger.info(f"Capital usage: {exchange_config.get('capital_usage', 1.0)*100}%")
+        self.logger.info(f"Max positions: {config.get('risk', {}).get('max_positions', 1)}")
 
         # Gestión de órdenes y posiciones
         self.order_manager = OrderManager()
@@ -86,26 +89,31 @@ class Daemon1981:
         self.check_interval = signal_config.get('check_interval', 300)
         self._shutdown_event = asyncio.Event()
 
-        # Recuperar estado
-        self._restore_state()
+        # Asegurar directorios
         ensure_directories(['./data/logs', './data/state', './data/snapshots'])
 
-    def _restore_state(self):
-        state = self.recovery.recover()
+        # La recuperación se hará en run() para poder usar await
+        self._restore_task = None
+
+    async def _restore_state(self):
+        """Recupera el estado desde persistencia (async)."""
+        state = await self.recovery.recover()
         if state:
             positions = state.get('positions', [])
             if positions:
                 self.position_manager.restore(positions)
-                self.logger.info("DAEMON", f"Posiciones recuperadas: {len(positions)}")
+                self.logger.info(f"Posiciones recuperadas: {len(positions)}")
                 if any(p.get('state') == 'OPEN' for p in positions):
                     self.state_machine.transition_to(DaemonState.POSITION_ACTIVE)
             orders = state.get('orders', [])
             if orders:
                 self.order_manager.restore(orders)
-                self.logger.info("DAEMON", f"Órdenes recuperadas: {len(orders)}")
+                self.logger.info(f"Órdenes recuperadas: {len(orders)}")
+        else:
+            self.logger.info("No se encontró estado previo, iniciando desde cero")
 
     async def _save_final_state(self):
-        self.logger.info("DAEMON", "Guardando estado final...")
+        self.logger.info("Guardando estado final...")
         await self.store.save_state({
             'positions': self.position_manager.to_dict(),
             'orders': self.order_manager.to_dict(),
@@ -113,8 +121,11 @@ class Daemon1981:
         })
 
     async def run(self):
+        # Recuperar estado antes de entrar al bucle
+        await self._restore_state()
+
         self.running = True
-        self.logger.info("DAEMON", "Daemon iniciado (event-driven)")
+        self.logger.info("Daemon iniciado (event-driven)")
 
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -142,14 +153,14 @@ class Daemon1981:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                self.logger.error("DAEMON", f"Error: {e}", exc_info=True)
+                self.logger.error(f"Error en bucle principal: {e}", exc_info=True)
                 self.state_machine.transition_to(DaemonState.ERROR)
                 await asyncio.sleep(10)
 
-        self.logger.info("DAEMON", "Daemon detenido")
+        self.logger.info("Daemon detenido")
 
     def _signal_handler(self, signum, frame):
-        self.logger.info("DAEMON", f"Señal {signum} recibida")
+        self.logger.info(f"Señal {signum} recibida")
         asyncio.create_task(self.shutdown())
 
     async def shutdown(self):
@@ -157,7 +168,7 @@ class Daemon1981:
         self.state_machine.transition_to(DaemonState.SHUTDOWN)
         await self._save_final_state()
         await self.exchange.close()
-        self.logger.info("DAEMON", "Apagado completado")
+        self.logger.info("Apagado completado")
         sys.exit(0)
 
     async def _check_for_signal(self):
