@@ -1,0 +1,38 @@
+mode: standalone
+
+exchange:
+  name: okx
+  testnet: true
+  leverage: 5
+  capital_usage: 1.0
+  futures: true
+
+signal_source:
+  type: github_artifact
+  repo: oz10000/D.A.P.S-Sognals
+  artifact_name: signals
+  check_interval: 300
+
+tier_filter:
+  config_path: ./config/tiers.yaml
+  enabled: true
+
+risk:
+  max_positions: 1
+  risk_per_trade: 0.02
+  max_daily_loss: 0.05
+  max_drawdown: 0.10
+
+persistence:
+  db_path: ./data/state/daemon.db
+  snapshot_interval: 600
+
+logging:
+  level: INFO
+  file: ./data/logs/daemon.log
+  format: json
+  max_bytes: 10485760
+  backup_count: 5
+  console: true
+
+heartbeat_interval: 60
