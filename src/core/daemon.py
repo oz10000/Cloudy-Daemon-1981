@@ -1,284 +1,221 @@
 """
-Daemon 1981 Ω V3 — Núcleo del sistema
+Daemon1981 — Orquestador principal event-driven (bajo consumo)
 """
-
 import asyncio
+import os
 import signal
 import sys
-from typing import Dict, Any, List
+from typing import Dict, Any
+from datetime import datetime
 
-from src.core.event_loop import EventLoopManager
-from src.core.supervisor import Supervisor
-from src.core.lifecycle import LifecycleManager, LifecycleState
-from src.core.state_machine import StateMachine, State
+from src.core.state_machine import DaemonState, StateMachine
 from src.core.shutdown_manager import ShutdownManager
-
-from src.persistence.sqlite_store import SQLiteStore
-from src.persistence.snapshot_manager import SnapshotManager
-from src.persistence.recovery import RecoveryManager
-
-from src.execution.signal_engine import SignalEngine
+from src.execution.signal_watcher import SignalWatcher
+from src.execution.tier_manager import TierManager
 from src.execution.execution_engine import ExecutionEngine
 from src.execution.order_manager import OrderManager
 from src.execution.position_manager import PositionManager
-from src.execution.reconciliation import Reconciliation
-
 from src.risk.risk_engine import RiskEngine
-from src.risk.emergency_stop import EmergencyStop, EmergencyStopReason
-from src.risk.leverage_manager import LeverageManager
-
+from src.risk.emergency_stop import EmergencyStop
 from src.exchanges.base import ExchangeFactory
-
-from src.daps.anomaly_engine import AnomalyEngine
-
-from src.certification.certifier import Certifier
-
-from src.repair.repair_engine import RepairEngine
-
+from src.persistence.sqlite_store import SQLiteStore
+from src.persistence.snapshot_manager import SnapshotManager
+from src.persistence.recovery import RecoveryManager
 from src.monitoring.heartbeat import Heartbeat
-from src.monitoring.metrics import MetricsCollector
-from src.monitoring.telemetry import Telemetry
+from src.utils.logger import get_logger
+from src.utils.file_manager import ensure_directories
 
-from src.utils.logger import get_logger, setup_logger
-
-
-class Daemon1981Omega:
+class Daemon1981:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.logger = get_logger()
+        self.running = False
+        self.busy = False
 
-        # Core
         self.state_machine = StateMachine()
-        self.lifecycle = LifecycleManager()
-        self.supervisor = Supervisor()
         self.shutdown_manager = ShutdownManager()
-        self.event_loop = EventLoopManager()
-        self.running = True
+        self.shutdown_manager.register_signal_handlers()
+        self.shutdown_manager.register_hook("save_final_state", self._save_final_state, priority=1)
 
         # Persistencia
         self.store = SQLiteStore(config.get('persistence', {}))
         self.snapshot_manager = SnapshotManager(self.store)
         self.recovery = RecoveryManager(self.store, self.snapshot_manager)
 
-        # Monitoreo
+        # Heartbeat
         self.heartbeat = Heartbeat(config.get('heartbeat_interval', 60))
-        self.metrics = MetricsCollector()
-        self.telemetry = Telemetry(config.get('telemetry', {}))
 
-        # Exchange
-        exchange_config = config.get('exchanges', {})
-        self.exchange = ExchangeFactory.create(
-            exchange_config.get('primary', 'simulator'),
-            exchange_config
-        )
+        # Exchange (OKX por defecto)
+        exchange_config = config.get('exchange', {})
+        exchange_name = exchange_config.get('name', 'okx')
+        self.exchange = ExchangeFactory.create(exchange_name, exchange_config)
+        self.logger.info("DAEMON", f"Exchange: {exchange_name} | Testnet: {exchange_config.get('testnet', True)}")
+        self.logger.info("DAEMON", f"Leverage: {exchange_config.get('leverage', 5)}X")
+        self.logger.info("DAEMON", f"Capital usage: {exchange_config.get('capital_usage', 1.0)*100}%")
+        self.logger.info("DAEMON", f"Max positions: {config.get('risk', {}).get('max_positions', 1)}")
 
-        # Riesgo
-        self.risk_engine = RiskEngine(config.get('risk', {}))
-        self.emergency_stop = EmergencyStop()
-        self.leverage_manager = LeverageManager(config.get('leverage', {}))
-
-        # Ejecución
+        # Gestión de órdenes y posiciones
         self.order_manager = OrderManager()
         self.position_manager = PositionManager()
-        self.signal_engine = SignalEngine(config.get('signal_source', {}))
-        self.reconciliation = Reconciliation(self.exchange, self.position_manager, self.order_manager)
-        self.execution_engine = ExecutionEngine(
-            self.exchange, self.order_manager, self.position_manager, self.risk_engine
+
+        # Riesgo
+        risk_config = config.get('risk', {})
+        self.risk_engine = RiskEngine(risk_config, self.position_manager)
+        self.emergency_stop = EmergencyStop()
+
+        # Tier Manager
+        tier_config = config.get('tier_filter', {})
+        self.tier_manager = TierManager(tier_config.get('config_path', './config/tiers.yaml'))
+
+        # Signal Watcher
+        signal_config = config.get('signal_source', {})
+        self.signal_watcher = SignalWatcher(
+            repo=signal_config.get('repo', 'oz10000/D.A.P.S-Sognals'),
+            token=os.environ.get('GH_PAT'),
+            state_file='./data/state/last_signal.yaml'
         )
 
-        # DAPS
-        self.anomaly_engine = AnomalyEngine()
+        # Execution Engine
+        self.execution_engine = ExecutionEngine(
+            exchange=self.exchange,
+            order_manager=self.order_manager,
+            position_manager=self.position_manager,
+            risk_engine=self.risk_engine
+        )
 
-        # Reparación
-        self.repair_engine = RepairEngine(config.get('repair', {}))
+        self.check_interval = signal_config.get('check_interval', 300)
+        self._shutdown_event = asyncio.Event()
 
-        # Certificación
-        self.certifier = Certifier(config.get('certification', {}))
+        # Recuperar estado
+        self._restore_state()
+        ensure_directories(['./data/logs', './data/state', './data/snapshots'])
 
-        # Tareas
-        self.tasks: List[asyncio.Task] = []
-
-        # Señales
-        self.shutdown_manager.register_signal_handlers()
-        self.shutdown_manager.register_hook("save_state", self._save_final_state, priority=1)
-        self.shutdown_manager.register_hook("close_exchange", self._close_exchange, priority=2)
-
-    async def run(self):
-        self.logger.info("DAEMON — 1981 DAEMON Ω V3 iniciando...")
-        self.state_machine.transition_to(State.BOOT)
-        await self.lifecycle.transition_to(LifecycleState.BOOT)  # CORREGIDO: await
-        self.telemetry.record_event("daemon_started")
-
-        await self._init_components()
-        await self.supervisor.start()
-
-        task_coros = [
-            ("heartbeat", self._heartbeat_task),
-            ("signal", self._signal_task),
-            ("execution", self._execution_task),
-            ("reconciliation", self._reconciliation_task),
-            ("snapshot", self._snapshot_task),
-            ("monitor", self._monitor_task),
-            ("repair", self._repair_task)
-        ]
-
-        for name, coro in task_coros:
-            task = asyncio.create_task(self.supervisor.wrap_task(name, coro()))
-            self.supervisor.register_task(name, task)
-            self.tasks.append(task)
-
-        await self.shutdown_manager.wait_for_shutdown_async()
-
-    async def _init_components(self):
-        self.logger.info("INIT — Inicializando componentes...")
-        self.state_machine.transition_to(State.INIT)
-        await self.lifecycle.transition_to(LifecycleState.INIT)
-
-        snapshot = await self.recovery.recover()
-        if snapshot:
-            await self.position_manager.restore(snapshot.get('positions', []))
-            await self.order_manager.restore(snapshot.get('orders', []))
-            self.logger.info(f"INIT — Estado restaurado: {len(snapshot.get('positions', []))} posiciones")
-
-        if not await self._self_test():
-            self.logger.error("INIT — Self-test fallido")
-            self.state_machine.transition_to(State.ERROR)
-            await self.lifecycle.transition_to(LifecycleState.ERROR)
-            raise RuntimeError("Self-test fallido")
-
-        if self.config.get('certification', {}).get('enabled', True):
-            await self._certify_modules()
-
-        self.state_machine.transition_to(State.STANDALONE)
-        await self.lifecycle.transition_to(LifecycleState.STANDALONE)
-        self.logger.info("INIT — Sistema listo en modo STANDALONE")
-
-    async def _self_test(self) -> bool:
-        self.logger.info("SELFTEST — Ejecutando self-test...")
-        self.state_machine.transition_to(State.SELF_TEST)
-        await self.lifecycle.transition_to(LifecycleState.SELF_TEST)
-
-        try:
-            await self.store.save_state({'test': 'ok'})
-            test = await self.store.load_state()
-            if test.get('test') != 'ok':
-                raise RuntimeError("Persistencia falló")
-
-            health = await self.exchange.health_check()
-            if not health.is_connected:
-                raise RuntimeError("Exchange no conectado")
-
-            self.logger.info("SELFTEST — Self-test completado")
-            return True
-        except Exception as e:
-            self.logger.error(f"SELFTEST — Falló: {e}")
-            return False
-
-    async def _certify_modules(self):
-        self.logger.info("CERTIFY — Certificando módulos...")
-        self.state_machine.transition_to(State.CERTIFY)
-        await self.lifecycle.transition_to(LifecycleState.CERTIFY)
-
-        modules = [
-            ('exchange', self.exchange),
-            ('risk_engine', self.risk_engine),
-            ('execution_engine', self.execution_engine),
-            ('signal_engine', self.signal_engine),
-            ('repair_engine', self.repair_engine)
-        ]
-
-        for name, module in modules:
-            result = await self.certifier.certify_module(module)
-            if not result['certified']:
-                self.logger.error(f"CERTIFY — Fallo certificación de {name}: {result}")
-                raise RuntimeError(f"Certificación fallida para {name}")
-            self.logger.info(f"CERTIFY — {name} certificado (score={result['score']:.1f}%)")
-
-        self.logger.info("CERTIFY — Todos los módulos certificados")
-
-    # --- Tareas periódicas ---
-
-    async def _heartbeat_task(self):
-        while self.running:
-            pulse = await self.heartbeat.pulse()
-            self.telemetry.record_heartbeat(pulse)
-            self.state_machine.transition_to(State.LIVE)
-            await self.lifecycle.transition_to(LifecycleState.LIVE)
-            await asyncio.sleep(self.heartbeat.interval)
-
-    async def _signal_task(self):
-        while self.running:
-            if self.emergency_stop.is_active():
-                await asyncio.sleep(1)
-                continue
-
-            signals = await self.signal_engine.read_signals()
-            for signal in signals:
-                if self.emergency_stop.is_active():
-                    break
-                leverage = self.leverage_manager.get_optimal_leverage(signal)
-                signal['leverage'] = leverage
-                if self.risk_engine.can_open_position(signal, self.position_manager):
-                    result = await self.execution_engine.execute(signal)
-                    self.telemetry.record_order(result)
-                else:
-                    self.logger.warning(f"SIGNAL — Señal rechazada: {signal.get('symbol')}")
-            await asyncio.sleep(5)
-
-    async def _execution_task(self):
-        while self.running:
-            await self.execution_engine.process_pending_orders()
-            if hasattr(self.exchange, 'get_price'):
-                try:
-                    price = await self.exchange.get_price('BTCUSDT')
-                    await self.position_manager.update_prices('BTCUSDT', price, self.exchange)
-                except Exception as e:
-                    self.logger.warning(f"EXEC — Error actualizando precios: {e}")
-            await self.execution_engine.check_exits()
-            await asyncio.sleep(1)
-
-    async def _reconciliation_task(self):
-        while self.running:
-            await self.reconciliation.sync()
-            await asyncio.sleep(60)
-
-    async def _snapshot_task(self):
-        while self.running:
-            await self.snapshot_manager.save_snapshot(
-                positions=self.position_manager.to_dict(),
-                orders=self.order_manager.to_dict()
-            )
-            await asyncio.sleep(300)
-
-    async def _monitor_task(self):
-        while self.running:
-            metrics = await self.metrics.collect(self.position_manager, self.order_manager)
-            self.telemetry.record_metrics(metrics)
-            daps_score = await self.anomaly_engine.analyze(metrics)
-            self.telemetry.record_daps(daps_score)
-            if daps_score.overall < 40:
-                self.logger.warning(f"DAPS — Score crítico: {daps_score.overall}")
-                self.emergency_stop.activate(EmergencyStopReason.DAPS_CRITICAL)
-            await asyncio.sleep(60)
-
-    async def _repair_task(self):
-        while self.running:
-            issues = await self.repair_engine.detect(self.position_manager, self.order_manager, self.exchange)
-            if issues:
-                self.logger.warning(f"REPAIR — {len(issues)} issues detectados")
-                for issue in issues:
-                    await self.repair_engine.repair(issue, self.position_manager, self.order_manager, self.exchange)
-            await asyncio.sleep(30)
+    def _restore_state(self):
+        state = self.recovery.recover()
+        if state:
+            positions = state.get('positions', [])
+            if positions:
+                self.position_manager.restore(positions)
+                self.logger.info("DAEMON", f"Posiciones recuperadas: {len(positions)}")
+                if any(p.get('state') == 'OPEN' for p in positions):
+                    self.state_machine.transition_to(DaemonState.POSITION_ACTIVE)
+            orders = state.get('orders', [])
+            if orders:
+                self.order_manager.restore(orders)
+                self.logger.info("DAEMON", f"Órdenes recuperadas: {len(orders)}")
 
     async def _save_final_state(self):
-        self.logger.info("SHUTDOWN — Guardando estado final...")
+        self.logger.info("DAEMON", "Guardando estado final...")
         await self.store.save_state({
             'positions': self.position_manager.to_dict(),
             'orders': self.order_manager.to_dict(),
-            'timestamp': self.telemetry.get_last_timestamp()
+            'timestamp': datetime.now().isoformat()
         })
 
-    async def _close_exchange(self):
-        self.logger.info("SHUTDOWN — Cerrando conexiones exchange...")
+    async def run(self):
+        self.running = True
+        self.logger.info("DAEMON", "Daemon iniciado (event-driven)")
+
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
+        self.state_machine.transition_to(DaemonState.SLEEPING)
+
+        while self.running:
+            try:
+                if self.state_machine.get_state() == DaemonState.SHUTDOWN:
+                    break
+
+                if self.position_manager.has_open_positions():
+                    await self._monitor_positions()
+                    await asyncio.sleep(10)
+                    continue
+
+                if self.busy:
+                    self.logger.debug("Ocupado, salto ciclo")
+                    await asyncio.sleep(5)
+                    continue
+
+                await self._check_for_signal()
+                await asyncio.sleep(self.check_interval)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error("DAEMON", f"Error: {e}", exc_info=True)
+                self.state_machine.transition_to(DaemonState.ERROR)
+                await asyncio.sleep(10)
+
+        self.logger.info("DAEMON", "Daemon detenido")
+
+    def _signal_handler(self, signum, frame):
+        self.logger.info("DAEMON", f"Señal {signum} recibida")
+        asyncio.create_task(self.shutdown())
+
+    async def shutdown(self):
+        self.running = False
+        self.state_machine.transition_to(DaemonState.SHUTDOWN)
+        await self._save_final_state()
         await self.exchange.close()
-        await self.signal_engine.close()
+        self.logger.info("DAEMON", "Apagado completado")
+        sys.exit(0)
+
+    async def _check_for_signal(self):
+        self.state_machine.transition_to(DaemonState.WAITING_EVENT)
+        signals = await self.signal_watcher.check_and_fetch()
+        if not signals:
+            self.logger.debug("No hay nuevas señales")
+            self.state_machine.transition_to(DaemonState.SLEEPING)
+            return
+
+        self.busy = True
+        self.state_machine.transition_to(DaemonState.EVENT_RECEIVED)
+
+        try:
+            filtered = self.tier_manager.filter_signals(signals)
+            if not filtered:
+                self.logger.info("Todas las señales filtradas por tiers")
+                self.state_machine.transition_to(DaemonState.SLEEPING)
+                return
+
+            signal = filtered[0]
+            self.logger.info(f"Señal seleccionada: {signal.get('symbol')} {signal.get('direction')} Tier:{signal.get('level')}")
+
+            self.state_machine.transition_to(DaemonState.VALIDATING)
+            if not self.risk_engine.can_open_position(signal):
+                self.logger.info("Señal rechazada por riesgo")
+                self.state_machine.transition_to(DaemonState.SLEEPING)
+                return
+
+            self.state_machine.transition_to(DaemonState.RISK_APPROVAL)
+            self.state_machine.transition_to(DaemonState.EXECUTING)
+            result = await self.execution_engine.execute(signal)
+
+            if result.get('status') == 'executed':
+                self.logger.info(f"Orden ejecutada: {result.get('position_id')}")
+                self.state_machine.transition_to(DaemonState.POSITION_ACTIVE)
+                await self._save_final_state()
+            else:
+                self.logger.error(f"Error ejecución: {result.get('reason')}")
+                self.state_machine.transition_to(DaemonState.ERROR)
+
+        except Exception as e:
+            self.logger.error(f"Error procesando señal: {e}", exc_info=True)
+            self.state_machine.transition_to(DaemonState.ERROR)
+        finally:
+            self.busy = False
+            self.state_machine.transition_to(DaemonState.SLEEPING)
+
+    async def _monitor_positions(self):
+        if not self.position_manager.has_open_positions():
+            return
+        self.state_machine.transition_to(DaemonState.MONITORING)
+        try:
+            await self.execution_engine.check_exits()
+            if not self.position_manager.has_open_positions():
+                self.state_machine.transition_to(DaemonState.CERTIFICATION)
+                await self._save_final_state()
+                self.logger.info("Posición cerrada, certificada")
+                self.state_machine.transition_to(DaemonState.SLEEPING)
+        except Exception as e:
+            self.logger.error(f"Error en monitoreo: {e}", exc_info=True)
