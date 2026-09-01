@@ -52,7 +52,7 @@ async def main():
         './data/backups',
     ])
 
-    # CORREGIDO: un solo argumento
+    # ⚠️ CORREGIDO: AHORA USA UN SOLO ARGUMENTO
     logger.info(f"BOOT: 1981 DAEMON Ω V4 iniciando en modo {args.mode}")
 
     # Advertencia para modo live
