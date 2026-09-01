@@ -1,0 +1,6 @@
+# Configuración persistente de tiers permitidos
+signals:
+  allowed_tiers:
+    - S-TIER
+    - A-TIER
+  updated_at: "2026-09-01T00:00:00Z"
