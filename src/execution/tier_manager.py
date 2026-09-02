@@ -18,7 +18,7 @@ class TierManager:
 
     def _load(self):
         if not os.path.exists(self.config_path):
-            self.logger.warning(f"Config de tiers no encontrada, usando defaults")
+            self.logger.warning(f"Config de tiers no encontrada en {self.config_path}, usando defaults")
             return
         try:
             with open(self.config_path, 'r') as f:
@@ -26,6 +26,7 @@ class TierManager:
                 tiers = data.get('signals', {}).get('allowed_tiers', [])
                 if tiers:
                     self._allowed_tiers = set(tiers)
+                    # ✅ CORREGIDO: uso de f-string (un solo argumento)
                     self.logger.info(f"Tiers cargados: {self._allowed_tiers}")
         except Exception as e:
             self.logger.error(f"Error cargando tiers: {e}")
