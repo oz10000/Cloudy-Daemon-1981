@@ -1,0 +1,16 @@
+{"timestamp": "2026-09-03T18:48:38.735564Z", "level": "INFO", "module": "1981_daemon", "message": "BOOT: 1981 DAEMON \u03a9 V4 iniciando en modo demo"}
+{"timestamp": "2026-09-03T18:48:38.735743Z", "level": "INFO", "module": "1981_daemon", "message": "SHUTDOWN: Manejadores de se\u00f1ales registrados"}
+{"timestamp": "2026-09-03T18:48:38.740658Z", "level": "INFO", "module": "1981_daemon", "message": "SIMULATOR \u2014 Simulador iniciado con balance: 10000.0 USDT"}
+{"timestamp": "2026-09-03T18:48:38.740770Z", "level": "INFO", "module": "1981_daemon", "message": "Exchange: simulator"}
+{"timestamp": "2026-09-03T18:48:38.740866Z", "level": "INFO", "module": "1981_daemon", "message": "Leverage: 1X"}
+{"timestamp": "2026-09-03T18:48:38.740941Z", "level": "INFO", "module": "1981_daemon", "message": "Capital usage: 100.0%"}
+{"timestamp": "2026-09-03T18:48:38.741021Z", "level": "INFO", "module": "1981_daemon", "message": "Max positions: 1"}
+{"timestamp": "2026-09-03T18:48:38.741807Z", "level": "INFO", "module": "1981_daemon", "message": "Tiers cargados: {'S-TIER', 'A-TIER'}"}
+{"timestamp": "2026-09-03T18:48:38.843014Z", "level": "INFO", "module": "1981_daemon", "message": "Daemon iniciado (event-driven)"}
+{"timestamp": "2026-09-03T18:48:38.843187Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: SLEEPING \u2192 SLEEPING"}
+{"timestamp": "2026-09-03T18:48:38.843286Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: SLEEPING \u2192 WAITING_EVENT"}
+{"timestamp": "2026-09-03T18:48:38.843371Z", "level": "WARNING", "module": "1981_daemon", "message": "GH_PAT no configurado"}
+{"timestamp": "2026-09-03T18:48:38.843443Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: WAITING_EVENT \u2192 SLEEPING"}
+{"timestamp": "2026-09-03T18:49:08.867354Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: SLEEPING \u2192 WAITING_EVENT"}
+{"timestamp": "2026-09-03T18:49:08.867521Z", "level": "WARNING", "module": "1981_daemon", "message": "GH_PAT no configurado"}
+{"timestamp": "2026-09-03T18:49:08.867594Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: WAITING_EVENT \u2192 SLEEPING"}
