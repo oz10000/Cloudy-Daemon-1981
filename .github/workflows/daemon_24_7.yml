@@ -77,7 +77,7 @@ jobs:
           OKX_DEMO: ${{ secrets.OKX_DEMO || '1' }}
 
           # 🔥 CRÍTICO: Token para descargar señales desde DAPS Ω
-          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_PAT: ${{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]}
 
           # Opcional: Repositorio DAPS (por defecto oz10000/D.A.P.S-Sognals)
           DAPS_REPOSITORY: ${{ secrets.DAPS_REPOSITORY || 'oz10000/D.A.P.S-Sognals' }}
