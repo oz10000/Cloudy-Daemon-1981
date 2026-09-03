@@ -2,28 +2,31 @@ name: 1981 DAEMON 24/7
 
 on:
   schedule:
-    - cron: "0 */5 * * *"
-  workflow_dispatch:
+    - cron: "0 */5 * * *"          # Cada 5 horas (ajustable)
+  workflow_dispatch:                # Permite ejecución manual
 
 concurrency:
   group: daemon-1981
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: write                   # Necesario para persistir estado en el repositorio
 
 jobs:
   run-daemon:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 360            # 6 horas máximo
 
     steps:
+      # 1. Clonar el repositorio
       - uses: actions/checkout@v4
 
+      # 2. Configurar Python
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      # 3. Cachear dependencias (pip)
       - name: Cache pip
         uses: actions/cache@v3
         with:
@@ -32,10 +35,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      # 4. Instalar dependencias
       - run: pip install -r requirements.txt
 
-      - run: mkdir -p data/logs data/state data/snapshots
+      # 5. Crear directorios necesarios
+      - run: mkdir -p data/logs data/state data/snapshots data/backups
 
+      # 6. Descargar estado anterior (desde artifact)
       - name: Download previous state
         continue-on-error: true
         uses: dawidd6/action-download-artifact@v2
@@ -46,6 +52,7 @@ jobs:
           check_artifacts: true
           search_artifacts: true
 
+      # 7. Restaurar estado en el directorio data/
       - name: Restore state
         if: success()
         run: |
@@ -55,18 +62,30 @@ jobs:
           if [ -d artifact_restore/data/snapshots ]; then
             cp -r artifact_restore/data/snapshots/* data/snapshots/ 2>/dev/null || true
           fi
+          if [ -d artifact_restore/data/logs ]; then
+            cp -r artifact_restore/data/logs/* data/logs/ 2>/dev/null || true
+          fi
 
+      # 8. ⚠️ EJECUTAR EL DAEMON — CON TODAS LAS VARIABLES DE ENTORNO
       - name: Run Daemon
         run: python src/main.py --mode demo
         env:
+          # Secretos para OKX (si se usan en producción)
           OKX_API_KEY: ${{ secrets.OKX_API_KEY }}
           OKX_SECRET_KEY: ${{ secrets.OKX_SECRET_KEY }}
           OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
           OKX_DEMO: ${{ secrets.OKX_DEMO || '1' }}
 
+          # 🔥 CRÍTICO: Token para descargar señales desde DAPS Ω
+          GH_PAT: ${{ secrets.GH_PAT }}
+
+          # Opcional: Repositorio DAPS (por defecto oz10000/D.A.P.S-Sognals)
+          DAPS_REPOSITORY: ${{ secrets.DAPS_REPOSITORY || 'oz10000/D.A.P.S-Sognals' }}
+
+      # 9. Subir estado (logs, DB, snapshots) como artifact
       - name: Upload state
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always()                   # Siempre, incluso si falla el daemon
         with:
           name: daemon-state
           path: |
@@ -75,11 +94,25 @@ jobs:
             data/logs/
           retention-days: 30
 
+      # 10. Persistir estado en el repositorio (commit + push)
       - name: Persist state to repository
         if: always()
         run: |
           git config user.email "bot@1981.daemon"
           git config user.name "Daemon1981Bot"
-          git add data/state/ data/snapshots/ 2>/dev/null || true
-          git commit -m " Update state $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes"
-          git push origin HEAD:main
+          git add data/state/ data/snapshots/ data/logs/ 2>/dev/null || true
+          git commit -m "🔄 Update state $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes to commit"
+          git push origin HEAD:main || echo "Push failed (maybe no changes)"
+
+      # 11. (Opcional) Verificar que el token funciona
+      - name: Verify GitHub token (debug)
+        if: always()
+        run: |
+          if [ -n "$GH_PAT" ]; then
+            echo "✅ GH_PAT está configurado (longitud: ${#GH_PAT})"
+          else
+            echo "❌ GH_PAT NO está configurado"
+            exit 1
+          fi
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
