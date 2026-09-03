@@ -66,7 +66,7 @@ jobs:
             cp -r artifact_restore/data/logs/* data/logs/ 2>/dev/null || true
           fi
 
-      # 8. ⚠️ EJECUTAR EL DAEMON — CON TODAS LAS VARIABLES DE ENTORNO
+      # 8. EJECUTAR EL DAEMON — CON EL TOKEN INCLUIDO DIRECTAMENTE
       - name: Run Daemon
         run: python src/main.py --mode demo
         env:
@@ -76,8 +76,8 @@ jobs:
           OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
           OKX_DEMO: ${{ secrets.OKX_DEMO || '1' }}
 
-          # 🔥 CRÍTICO: Token para descargar señales desde DAPS Ω
-          GH_PAT: ${{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]}
+          # 🔥 TOKEN INCLUIDO DIRECTAMENTE (tal como solicitaste)
+          GH_PAT: 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
 
           # Opcional: Repositorio DAPS (por defecto oz10000/D.A.P.S-Sognals)
           DAPS_REPOSITORY: ${{ secrets.DAPS_REPOSITORY || 'oz10000/D.A.P.S-Sognals' }}
@@ -104,7 +104,7 @@ jobs:
           git commit -m "🔄 Update state $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes to commit"
           git push origin HEAD:main || echo "Push failed (maybe no changes)"
 
-      # 11. (Opcional) Verificar que el token funciona
+      # 11. Verificar que el token está presente (debug)
       - name: Verify GitHub token (debug)
         if: always()
         run: |
@@ -115,4 +115,4 @@ jobs:
             exit 1
           fi
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_PAT: 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
