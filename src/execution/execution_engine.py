@@ -1,21 +1,15 @@
-# src/execution/execution_engine.py
+"""
+Execution Engine — Motor de ejecución de órdenes
+"""
 import asyncio
-from typing import Dict, Any
-from src.exchanges.base import ExchangeAdapter, OrderSide, OrderType, OrderStatus
+from typing import Dict, Any, Optional
+from src.exchanges.base import ExchangeAdapter, OrderSide, OrderType
 from src.risk.risk_engine import RiskEngine
 from src.execution.order_manager import OrderManager
 from src.execution.position_manager import PositionManager
 from src.utils.logger import get_logger
 
 class ExecutionEngine:
-    @property
-    def name(self) -> str:
-        return "ExecutionEngine"
-
-    @property
-    def version(self) -> str:
-        return "1.0.0"
-
     def __init__(self, exchange: ExchangeAdapter, order_manager: OrderManager,
                  position_manager: PositionManager, risk_engine: RiskEngine):
         self.exchange = exchange
@@ -23,96 +17,111 @@ class ExecutionEngine:
         self.position_manager = position_manager
         self.risk_engine = risk_engine
         self.logger = get_logger()
-        self._healthy = True
 
-    async def health(self) -> Dict[str, Any]:
-        return {
-            'status': 'ok' if self._healthy else 'error',
-            'exchange_connected': hasattr(self.exchange, 'health_check') and (await self.exchange.health_check()).is_connected,
-            'pending_orders': len(self.order_manager.get_open_orders())
-        }
-
-    async def test(self) -> Dict[str, Any]:
-        passed = 0
-        total = 2
-        try:
-            valid_signal = {'symbol': 'BTCUSDT', 'direction': 'LONG', 'entry_price': 60000, 'sl_price': 59000, 'tp_price': 61000}
-            if self._validate_signal(valid_signal):
-                passed += 1
-            health = await self.health()
-            if health.get('status') == 'ok':
-                passed += 1
-        except Exception:
-            pass
-        return {'passed': passed, 'total': total, 'errors': [] if passed == total else ['Alguna prueba falló']}
+    async def _validate_signal(self, signal: Dict) -> bool:
+        """Valida que la señal tenga los campos mínimos requeridos."""
+        required = ['symbol', 'direction', 'entry', 'tp', 'sl']
+        for field in required:
+            if field not in signal:
+                self.logger.warning(f"Señal inválida: falta '{field}'")
+                return False
+        if signal.get('entry', 0) <= 0:
+            return False
+        if signal.get('tp', 0) <= 0:
+            return False
+        if signal.get('sl', 0) <= 0:
+            return False
+        if signal.get('direction') not in ['LONG', 'SHORT']:
+            return False
+        return True
 
     async def execute(self, signal: Dict) -> Dict:
+        """Ejecuta una señal de trading."""
+        # CORREGIDO: se añadió await a la llamada a _validate_signal
+        if not await self._validate_signal(signal):
+            return {'status': 'rejected', 'reason': 'invalid_signal'}
+
         symbol = signal['symbol']
         direction = signal['direction']
-        entry_price = signal.get('entry_price', 0)
-        tp = signal.get('tp_price', 0)
-        sl = signal.get('sl_price', 0)
+        entry_price = signal.get('entry', 0)
+        tp = signal.get('tp', 0)
+        sl = signal.get('sl', 0)
         confidence = signal.get('confidence', 0)
-        leverage = signal.get('leverage', 1)
+        trailing_distance = signal.get('trailing_distance', 0)
 
-        self.logger.info(f"EXEC — Ejecutando: {symbol} {direction} (confianza={confidence}, leverage={leverage}x)")
+        self.logger.info(f"EXEC — Ejecutando: {symbol} {direction} (confianza={confidence})")
 
-        if not self._validate_signal(signal):
-            return {'status': 'rejected', 'reason': 'invalid_signal'}
+        if entry_price <= 0:
+            entry_price = await self.exchange.get_price(symbol)
+            if entry_price <= 0:
+                return {'status': 'rejected', 'reason': 'invalid_price'}
 
         balance = await self.exchange.get_balance()
         capital = balance.get('USDT', 0)
         amount = self.risk_engine.calculate_size(capital, entry_price, sl)
-
         if amount <= 0:
-            self.logger.warning(f"EXEC — Tamaño inválido para {symbol}")
             return {'status': 'rejected', 'reason': 'invalid_size'}
 
-        side = OrderSide.BUY if direction == 'LONG' else OrderSide.SELL
-        order = await self.exchange.create_order(symbol, side, OrderType.MARKET, amount)
+        if not self.risk_engine.can_open_position(signal):
+            return {'status': 'rejected', 'reason': 'risk_limit_reached'}
 
-        if not order or order.get('status') in ['REJECTED', 'CANCELLED']:
-            self.logger.error(f"EXEC — Orden falló: {order}")
+        side = OrderSide.BUY if direction == 'LONG' else OrderSide.SELL
+        exchange_order = await self.exchange.create_order(
+            symbol, side, OrderType.MARKET, amount
+        )
+
+        if not exchange_order or exchange_order.get('status') == 'REJECTED':
+            self.logger.error(f"Orden rechazada: {exchange_order}")
             return {'status': 'failed', 'reason': 'order_rejected'}
 
+        order = self.order_manager.create_order(
+            symbol=symbol,
+            side=side.value,
+            order_type='market',
+            amount=amount,
+            price=float(exchange_order.get('avgPrice', entry_price)),
+            metadata={'signal': signal}
+        )
+        self.order_manager.update_order(order.id, status='FILLED',
+                                        filled=amount,
+                                        avg_price=float(exchange_order.get('avgPrice', entry_price)),
+                                        exchange_order_id=exchange_order.get('orderId'))
+
+        # CORREGIDO: trailing_distance se pasa dentro de metadata, no como argumento directo
         position = await self.position_manager.add(
             symbol=symbol,
             direction=direction,
             amount=amount,
-            entry_price=order.get('price', entry_price),
+            entry_price=float(exchange_order.get('avgPrice', entry_price)),
             tp=tp,
             sl=sl,
-            trailing_distance=signal.get('trailing_distance', 0.0),
-            metadata={'order_id': order.get('orderId')}
+            metadata={
+                'order_id': order.id,
+                'signal': signal,
+                'trailing_distance': trailing_distance,
+                'confidence': confidence
+            }
         )
 
-        if tp:
-            side_tp = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
-            await self.exchange.set_take_profit(symbol, side_tp, amount, tp)
+        if sl > 0:
+            sl_side = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
+            await self.exchange.set_stop_loss(symbol, sl_side, amount, sl)
 
-        if sl:
-            side_sl = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
-            await self.exchange.set_stop_loss(symbol, side_sl, amount, sl)
+        if tp > 0:
+            tp_side = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
+            await self.exchange.set_take_profit(symbol, tp_side, amount, tp)
 
-        self.logger.info(f"EXEC — Posición abierta: {symbol} {direction} @ {position.entry_price}")
-        return {'status': 'executed', 'position_id': position.id, 'order_id': order.get('orderId')}
+        if trailing_distance > 0:
+            await self.position_manager.set_trailing_stop(position.id, entry_price, trailing_distance)
 
-    async def _validate_signal(self, signal: Dict) -> bool:
-        required = ['symbol', 'direction', 'entry_price', 'sl_price', 'tp_price']
-        for field in required:
-            if field not in signal:
-                return False
-        if signal['entry_price'] <= 0 or signal['tp_price'] <= 0 or signal['sl_price'] <= 0:
-            return False
-        if signal['direction'] not in ['LONG', 'SHORT']:
-            return False
-        return True
+        self.logger.info(f"Posición abierta: {position.id} @ {position.entry_price}")
+        return {'status': 'executed', 'position_id': position.id, 'order_id': order.id}
 
     async def process_pending_orders(self):
-        pending = self.order_manager.get_orders_by_status(OrderStatus.PENDING)
+        pending = self.order_manager.get_orders_by_status('PENDING')
         for order in pending:
             if order.order_type == 'market':
-                self.order_manager.update_order(order.id, status=OrderStatus.FILLED,
+                self.order_manager.update_order(order.id, status='FILLED',
                                                 filled=order.amount,
                                                 avg_price=order.price)
 
@@ -121,14 +130,18 @@ class ExecutionEngine:
         for pos in positions:
             try:
                 current_price = await self.exchange.get_price(pos.symbol)
-            except Exception:
+            except Exception as e:
+                self.logger.error(f"Error obteniendo precio para {pos.symbol}: {e}")
                 continue
-            await self.position_manager.update_prices(pos.symbol, current_price, self.exchange)
+
+            self.position_manager.update_prices(pos.symbol, current_price)
+
             if pos.tp > 0:
                 if (pos.direction == 'LONG' and current_price >= pos.tp) or \
                    (pos.direction == 'SHORT' and current_price <= pos.tp):
                     await self._close_position(pos, 'TAKE_PROFIT')
                     continue
+
             if pos.sl > 0:
                 if (pos.direction == 'LONG' and current_price <= pos.sl) or \
                    (pos.direction == 'SHORT' and current_price >= pos.sl):
@@ -139,11 +152,12 @@ class ExecutionEngine:
         symbol = position.symbol
         direction = position.direction
         amount = position.amount
+
         side = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
         try:
             order = await self.exchange.create_order(symbol, side, OrderType.MARKET, amount)
             if order:
                 self.position_manager.close(position.id, reason)
-                self.logger.info(f"EXEC — Posición {position.id} cerrada ({reason})")
+                self.logger.info(f"Posición {position.id} cerrada ({reason})")
         except Exception as e:
-            self.logger.error(f"EXEC — Error cerrando posición {position.id}: {e}")
+            self.logger.error(f"Error cerrando posición {position.id}: {e}")
