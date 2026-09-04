@@ -19,38 +19,50 @@ class ExecutionEngine:
         self.logger = get_logger()
 
     async def _validate_signal(self, signal: Dict) -> bool:
-        """Valida que la señal tenga los campos mínimos requeridos."""
-        required = ['symbol', 'direction', 'entry', 'tp', 'sl']
+        """
+        Valida que la señal tenga los campos requeridos en el formato de DAPS Ω.
+        Campos esperados: symbol, direction, entry_price, sl_price, tp_price
+        """
+        required = ['symbol', 'direction', 'entry_price', 'sl_price', 'tp_price']
         for field in required:
             if field not in signal:
                 self.logger.warning(f"Señal inválida: falta '{field}'")
                 return False
-        if signal.get('entry', 0) <= 0:
+
+        # Validar que los precios sean positivos
+        if signal.get('entry_price', 0) <= 0:
+            self.logger.warning("Señal inválida: entry_price <= 0")
             return False
-        if signal.get('tp', 0) <= 0:
+        if signal.get('sl_price', 0) <= 0:
+            self.logger.warning("Señal inválida: sl_price <= 0")
             return False
-        if signal.get('sl', 0) <= 0:
+        if signal.get('tp_price', 0) <= 0:
+            self.logger.warning("Señal inválida: tp_price <= 0")
             return False
+
         if signal.get('direction') not in ['LONG', 'SHORT']:
+            self.logger.warning(f"Dirección inválida: {signal.get('direction')}")
             return False
+
         return True
 
     async def execute(self, signal: Dict) -> Dict:
         """Ejecuta una señal de trading."""
-        # CORREGIDO: se añadió await a la llamada a _validate_signal
+        # CORREGIDO: usa nombres de campos de DAPS
         if not await self._validate_signal(signal):
             return {'status': 'rejected', 'reason': 'invalid_signal'}
 
         symbol = signal['symbol']
         direction = signal['direction']
-        entry_price = signal.get('entry', 0)
-        tp = signal.get('tp', 0)
-        sl = signal.get('sl', 0)
+        entry_price = signal['entry_price']
+        sl = signal['sl_price']
+        tp = signal['tp_price']
         confidence = signal.get('confidence', 0)
         trailing_distance = signal.get('trailing_distance', 0)
 
         self.logger.info(f"EXEC — Ejecutando: {symbol} {direction} (confianza={confidence})")
 
+        # Si entry_price es 0 (no debería, pero por seguridad), obtener precio actual
         if entry_price <= 0:
             entry_price = await self.exchange.get_price(symbol)
             if entry_price <= 0:
@@ -87,7 +99,7 @@ class ExecutionEngine:
                                         avg_price=float(exchange_order.get('avgPrice', entry_price)),
                                         exchange_order_id=exchange_order.get('orderId'))
 
-        # CORREGIDO: trailing_distance se pasa dentro de metadata, no como argumento directo
+        # Crear posición
         position = await self.position_manager.add(
             symbol=symbol,
             direction=direction,
@@ -103,6 +115,7 @@ class ExecutionEngine:
             }
         )
 
+        # Colocar SL y TP en el exchange
         if sl > 0:
             sl_side = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
             await self.exchange.set_stop_loss(symbol, sl_side, amount, sl)
