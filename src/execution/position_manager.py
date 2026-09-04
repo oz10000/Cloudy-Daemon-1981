@@ -11,7 +11,7 @@ from src.utils.logger import get_logger
 class Position:
     id: str
     symbol: str
-    direction: str  # 'LONG' or 'SHORT'
+    direction: str
     amount: float
     entry_price: float
     mark_price: float
@@ -20,7 +20,7 @@ class Position:
     trailing_activation: float = 0.0
     trailing_distance: float = 0.0
     breakeven_activation: float = 0.0
-    state: str = 'OPEN'  # OPEN, CLOSED, PARTIAL
+    state: str = 'OPEN'
     realized_pnl: float = 0.0
     unrealized_pnl: float = 0.0
     highest_price: float = 0.0
@@ -30,16 +30,14 @@ class Position:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 class PositionManager:
-    """Administrador de posiciones con cálculos avanzados."""
-
     def __init__(self):
         self.positions: Dict[str, Position] = {}
         self.logger = get_logger()
 
-    def add(self, symbol: str, direction: str, amount: float,
-            entry_price: float, tp: float = 0.0, sl: float = 0.0,
-            metadata: Optional[Dict] = None) -> Position:
-        """Abre una nueva posición."""
+    # CORREGIDO: se eliminó el argumento directo trailing_distance y se lee desde metadata
+    async def add(self, symbol: str, direction: str, amount: float,
+                  entry_price: float, tp: float = 0.0, sl: float = 0.0,
+                  metadata: Optional[Dict] = None) -> Position:
         pos_id = f"pos_{uuid.uuid4().hex[:12]}"
         position = Position(
             id=pos_id,
@@ -54,17 +52,20 @@ class PositionManager:
             lowest_price=entry_price,
             metadata=metadata or {}
         )
+        if metadata and 'trailing_distance' in metadata:
+            position.trailing_distance = metadata['trailing_distance']
+        if metadata and 'trailing_activation' in metadata:
+            position.trailing_activation = metadata['trailing_activation']
+
         self.positions[pos_id] = position
         self.logger.info(f"Posición abierta: {pos_id} {symbol} {direction} @ {entry_price}")
         return position
 
     def update_prices(self, symbol: str, mark_price: float) -> Optional[Position]:
-        """Actualiza el mark price de una posición y recalcula PnL y trailing."""
         positions = [p for p in self.positions.values() if p.symbol == symbol and p.state == 'OPEN']
         for pos in positions:
             pos.mark_price = mark_price
 
-            # Actualizar highest/lowest
             if pos.direction == 'LONG':
                 if mark_price > pos.highest_price:
                     pos.highest_price = mark_price
@@ -76,13 +77,11 @@ class PositionManager:
                 if mark_price > pos.highest_price:
                     pos.highest_price = mark_price
 
-            # Calcular unrealized PnL
             if pos.direction == 'LONG':
                 pos.unrealized_pnl = (mark_price - pos.entry_price) * pos.amount
             else:
                 pos.unrealized_pnl = (pos.entry_price - mark_price) * pos.amount
 
-            # Trailing Stop logic
             if pos.trailing_distance > 0:
                 if pos.direction == 'LONG':
                     if pos.highest_price >= pos.trailing_activation:
@@ -97,7 +96,6 @@ class PositionManager:
                             pos.sl = new_sl
                             self.logger.debug(f"Trailing SL actualizado a {new_sl:.2f} para {pos.id}")
 
-            # Breakeven logic
             if pos.breakeven_activation > 0:
                 profit_percent = abs((mark_price - pos.entry_price) / pos.entry_price)
                 if profit_percent >= pos.breakeven_activation:
@@ -108,11 +106,9 @@ class PositionManager:
         return positions[0] if positions else None
 
     def close(self, position_id: str, reason: str = "manual") -> Optional[Position]:
-        """Cierra una posición."""
         pos = self.positions.get(position_id)
         if not pos or pos.state == 'CLOSED':
             return None
-
         pos.state = 'CLOSED'
         pos.closed_at = datetime.now().isoformat()
         pos.realized_pnl = pos.unrealized_pnl
@@ -130,14 +126,12 @@ class PositionManager:
         return [p for p in self.positions.values() if p.state == 'OPEN']
 
     def has_open_positions(self) -> bool:
-        """Retorna True si hay al menos una posición abierta."""
         return any(p.state == 'OPEN' for p in self.positions.values())
 
     def get_closed(self) -> List[Position]:
         return [p for p in self.positions.values() if p.state == 'CLOSED']
 
     def set_trailing_stop(self, position_id: str, activation: float, distance: float) -> bool:
-        """Activa trailing stop para una posición."""
         pos = self.positions.get(position_id)
         if not pos:
             return False
@@ -147,7 +141,6 @@ class PositionManager:
         return True
 
     def set_breakeven(self, position_id: str, activation: float) -> bool:
-        """Activa breakeven para una posición."""
         pos = self.positions.get(position_id)
         if not pos:
             return False
@@ -156,7 +149,6 @@ class PositionManager:
         return True
 
     async def restore(self, positions_data: List[Dict]) -> None:
-        """Restaura posiciones desde datos guardados."""
         for data in positions_data:
             pos = Position(
                 id=data['id'],
