@@ -26,7 +26,7 @@ class TierManager:
                 tiers = data.get('signals', {}).get('allowed_tiers', [])
                 if tiers:
                     self._allowed_tiers = set(tiers)
-                    # ✅ CORREGIDO: uso de f-string (un solo argumento)
+                    # CORREGIDO: f-string
                     self.logger.info(f"Tiers cargados: {self._allowed_tiers}")
         except Exception as e:
             self.logger.error(f"Error cargando tiers: {e}")
@@ -41,6 +41,7 @@ class TierManager:
         os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
         with open(self.config_path, 'w') as f:
             yaml.dump(data, f, default_flow_style=False)
+        self.logger.info(f"Tiers guardados: {self._allowed_tiers}")
 
     def get_allowed_tiers(self) -> List[str]:
         return list(self._allowed_tiers)
@@ -55,4 +56,6 @@ class TierManager:
     def filter_signals(self, signals: List[Dict]) -> List[Dict]:
         if not signals:
             return []
-        return [s for s in signals if self.is_tier_allowed(s.get('level', ''))]
+        filtered = [s for s in signals if self.is_tier_allowed(s.get('level', ''))]
+        self.logger.info(f"Señales después de filtro de tiers: {len(filtered)} de {len(signals)}")
+        return filtered
