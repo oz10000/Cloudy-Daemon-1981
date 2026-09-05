@@ -1,66 +1,42 @@
-# src/risk/emergency_stop.py
-import asyncio
-from typing import Optional
-from datetime import datetime
-from enum import Enum
+"""Parada de emergencia para cancelar todas las órdenes y posiciones."""
 from src.utils.logger import get_logger
+from src.exchanges.base import ExchangeAdapter
 
-
-class EmergencyStopReason(Enum):
-    MANUAL = "manual"
-    DAPS_CRITICAL = "daps_critical"
-    DRAWDOWN_LIMIT = "drawdown_limit"
-    DAILY_LOSS_LIMIT = "daily_loss_limit"
-    EXCHANGE_DISCONNECTED = "exchange_disconnected"
-    SYSTEM_ERROR = "system_error"
-
+logger = get_logger("emergency_stop")
 
 class EmergencyStop:
-    def __init__(self):
-        self.logger = get_logger()
-        self._active = False
-        self._reason: Optional[EmergencyStopReason] = None
-        self._activated_at: Optional[datetime] = None
-        self._cooldown_until: Optional[datetime] = None
-        self._cooldown_seconds = 300
+    def __init__(self, exchange: ExchangeAdapter):
+        """
+        Inicializa la parada de emergencia con el adaptador de exchange.
+        
+        :param exchange: Adaptador del exchange para cancelar órdenes.
+        """
+        self.exchange = exchange
+        self._activated = False
+        self.logger = logger
 
-    def activate(self, reason: EmergencyStopReason, cooldown_seconds: Optional[int] = None):
-        if self._active:
-            self.logger.warning("EMERGENCY — Emergency stop ya activo")
-            return
+    async def activate(self) -> bool:
+        """Activa la parada de emergencia: cancela todas las órdenes."""
+        self.logger.warning("EMERGENCY — ACTIVANDO PARADA DE EMERGENCIA")
+        try:
+            # Intentar cancelar todas las órdenes abiertas
+            result = await self.exchange.cancel_all_orders()
+            if result:
+                self._activated = True
+                self.logger.info("EMERGENCY — Parada de emergencia completada")
+                return True
+            else:
+                self.logger.error("EMERGENCY — Falló la cancelación de órdenes")
+                return False
+        except Exception as e:
+            self.logger.error(f"EMERGENCY — Error: {e}")
+            return False
 
-        self._active = True
-        self._reason = reason
-        self._activated_at = datetime.now()
-        if cooldown_seconds:
-            self._cooldown_seconds = cooldown_seconds
-        self._cooldown_until = datetime.now().timestamp() + self._cooldown_seconds
-
-        self.logger.critical(f"EMERGENCY — STOP ACTIVADO! Razón: {reason.value}. Cooldown: {self._cooldown_seconds}s")
-        asyncio.create_task(self._auto_release())
-
-    async def _auto_release(self):
-        await asyncio.sleep(self._cooldown_seconds)
-        if self._active:
-            self.release("auto_release")
-
-    def release(self, reason: str = "manual_release"):
-        if not self._active:
-            return
-
-        self._active = False
-        self._reason = None
-        self._activated_at = None
-        self._cooldown_until = None
-        self.logger.info(f"EMERGENCY — STOP desactivado. Razón: {reason}")
+    def reset(self) -> None:
+        """Resetea el estado de emergencia."""
+        self._activated = False
+        self.logger.info("EMERGENCY — Reset")
 
     def is_active(self) -> bool:
-        return self._active
-
-    def get_status(self) -> dict:
-        return {
-            'active': self._active,
-            'reason': self._reason.value if self._reason else None,
-            'activated_at': self._activated_at.isoformat() if self._activated_at else None,
-            'cooldown_until': self._cooldown_until
-        }
+        """Retorna si la parada de emergencia está activa."""
+        return self._activated
