@@ -1,6 +1,4 @@
-"""
-Signal Watcher — Vigila nuevas señales desde GitHub Artifact (hash-based)
-"""
+"""Vigila nuevas señales desde GitHub Artifact (hash-based)."""
 import os
 import json
 import hashlib
@@ -8,13 +6,16 @@ import yaml
 from typing import List, Dict, Optional
 from datetime import datetime
 from src.utils.logger import get_logger
+from src.utils.retry import retry
 from src.execution.github_artifact_provider import GitHubArtifactProvider
+
+logger = get_logger("signal_watcher")
 
 class SignalWatcher:
     def __init__(self, repo: str, token: Optional[str] = None, state_file: str = "./data/state/last_signal.yaml"):
         self.provider = GitHubArtifactProvider(repo, token)
         self.state_file = state_file
-        self.logger = get_logger()
+        self.logger = logger
         self._last_state = self._load_state()
 
     def _load_state(self) -> Dict:
@@ -55,6 +56,7 @@ class SignalWatcher:
         required = ['symbol', 'direction', 'level']
         return all(k in signal for k in required) and signal['direction'] in ['LONG', 'SHORT']
 
+    @retry(max_attempts=2, delay=5.0, backoff=2.0, exceptions=(Exception,))
     async def check_and_fetch(self) -> List[Dict]:
         signals = await self.provider.fetch_latest()
         if not signals:
