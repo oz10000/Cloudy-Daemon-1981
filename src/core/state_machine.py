@@ -41,7 +41,7 @@ class StateMachine:
             'data': data or {}
         }
         self._history.append(entry)
-        # CORREGIDO: un solo argumento
+        # CORREGIDO: un solo argumento (f-string)
         self.logger.info(f"STATE: {old.name} → {new_state.name}")
         return True
 
