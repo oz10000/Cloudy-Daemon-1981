@@ -19,17 +19,12 @@ class ExecutionEngine:
         self.logger = get_logger()
 
     async def _validate_signal(self, signal: Dict) -> bool:
-        """
-        Valida que la señal tenga los campos requeridos en el formato de DAPS Ω.
-        Campos esperados: symbol, direction, entry_price, sl_price, tp_price
-        """
+        """Valida que la señal tenga los campos requeridos (formato DAPS)."""
         required = ['symbol', 'direction', 'entry_price', 'sl_price', 'tp_price']
         for field in required:
             if field not in signal:
                 self.logger.warning(f"Señal inválida: falta '{field}'")
                 return False
-
-        # Validar que los precios sean positivos
         if signal.get('entry_price', 0) <= 0:
             self.logger.warning("Señal inválida: entry_price <= 0")
             return False
@@ -39,16 +34,14 @@ class ExecutionEngine:
         if signal.get('tp_price', 0) <= 0:
             self.logger.warning("Señal inválida: tp_price <= 0")
             return False
-
         if signal.get('direction') not in ['LONG', 'SHORT']:
             self.logger.warning(f"Dirección inválida: {signal.get('direction')}")
             return False
-
         return True
 
     async def execute(self, signal: Dict) -> Dict:
         """Ejecuta una señal de trading."""
-        # CORREGIDO: usa nombres de campos de DAPS
+        # CORREGIDO: se añadió await
         if not await self._validate_signal(signal):
             return {'status': 'rejected', 'reason': 'invalid_signal'}
 
@@ -62,7 +55,7 @@ class ExecutionEngine:
 
         self.logger.info(f"EXEC — Ejecutando: {symbol} {direction} (confianza={confidence})")
 
-        # Si entry_price es 0 (no debería, pero por seguridad), obtener precio actual
+        # Si entry_price es 0, obtener precio actual
         if entry_price <= 0:
             entry_price = await self.exchange.get_price(symbol)
             if entry_price <= 0:
@@ -77,6 +70,7 @@ class ExecutionEngine:
         if not self.risk_engine.can_open_position(signal):
             return {'status': 'rejected', 'reason': 'risk_limit_reached'}
 
+        # CORREGIDO: usar Enum directamente (no strings)
         side = OrderSide.BUY if direction == 'LONG' else OrderSide.SELL
         exchange_order = await self.exchange.create_order(
             symbol, side, OrderType.MARKET, amount
@@ -86,25 +80,29 @@ class ExecutionEngine:
             self.logger.error(f"Orden rechazada: {exchange_order}")
             return {'status': 'failed', 'reason': 'order_rejected'}
 
+        # Asegurar que avgPrice no sea 0
+        avg_price = float(exchange_order.get('avgPrice', entry_price))
+        if avg_price <= 0:
+            avg_price = entry_price
+
         order = self.order_manager.create_order(
             symbol=symbol,
             side=side.value,
             order_type='market',
             amount=amount,
-            price=float(exchange_order.get('avgPrice', entry_price)),
+            price=avg_price,
             metadata={'signal': signal}
         )
         self.order_manager.update_order(order.id, status='FILLED',
                                         filled=amount,
-                                        avg_price=float(exchange_order.get('avgPrice', entry_price)),
+                                        avg_price=avg_price,
                                         exchange_order_id=exchange_order.get('orderId'))
 
-        # Crear posición
         position = await self.position_manager.add(
             symbol=symbol,
             direction=direction,
             amount=amount,
-            entry_price=float(exchange_order.get('avgPrice', entry_price)),
+            entry_price=avg_price,
             tp=tp,
             sl=sl,
             metadata={
@@ -124,8 +122,9 @@ class ExecutionEngine:
             tp_side = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
             await self.exchange.set_take_profit(symbol, tp_side, amount, tp)
 
+        # CORREGIDO: set_trailing_stop es síncrono → NO usar await
         if trailing_distance > 0:
-            await self.position_manager.set_trailing_stop(position.id, entry_price, trailing_distance)
+            self.position_manager.set_trailing_stop(position.id, entry_price, trailing_distance)
 
         self.logger.info(f"Posición abierta: {position.id} @ {position.entry_price}")
         return {'status': 'executed', 'position_id': position.id, 'order_id': order.id}
@@ -166,6 +165,7 @@ class ExecutionEngine:
         direction = position.direction
         amount = position.amount
 
+        # CORREGIDO: usar Enum directamente
         side = OrderSide.SELL if direction == 'LONG' else OrderSide.BUY
         try:
             order = await self.exchange.create_order(symbol, side, OrderType.MARKET, amount)
