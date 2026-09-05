@@ -1,81 +1,36 @@
-"""
-Shutdown Manager — Gestión de apagado graceful
-"""
+"""Gestión de apagado graceful con hooks y timeouts."""
 import asyncio
-import signal
-import time
-from typing import List, Dict, Any, Callable, Awaitable
+from typing import List, Callable, Awaitable, Optional
 from src.utils.logger import get_logger
 
+logger = get_logger("shutdown_manager")
+
 class ShutdownHook:
-    def __init__(self, name: str, callback: Callable[[], Awaitable[Any]], priority: int = 10, timeout: float = 30.0):
+    def __init__(self, name: str, callback: Callable[[], Awaitable[None]], timeout: float = 5.0):
         self.name = name
         self.callback = callback
-        self.priority = priority
         self.timeout = timeout
 
 class ShutdownManager:
     def __init__(self):
-        self.logger = get_logger()
-        self.hooks: List[ShutdownHook] = []
-        self.is_shutting_down = False
-        self.shutdown_event = asyncio.Event()
-        self._signal_handlers_registered = False
+        self._hooks: List[ShutdownHook] = []
+        self._shutdown_in_progress = False
 
-    def register_hook(self, name: str, callback: Callable[[], Awaitable[Any]], priority: int = 10, timeout: float = 30.0):
-        self.hooks.append(ShutdownHook(name, callback, priority, timeout))
-        self.hooks.sort(key=lambda h: h.priority)
-        self.logger.debug(f"Shutdown hook registrado: {name} (prioridad={priority})")
+    def register_hook(self, hook: ShutdownHook) -> None:
+        self._hooks.append(hook)
+        logger.info(f"SHUTDOWN — Hook '{hook.name}' registrado")
 
-    def register_signal_handlers(self):
-        if self._signal_handlers_registered:
+    async def shutdown(self) -> None:
+        if self._shutdown_in_progress:
             return
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
-        self._signal_handlers_registered = True
-        # ⚠️ CORREGIDO: AHORA USA UN SOLO ARGUMENTO
-        self.logger.info("SHUTDOWN: Manejadores de señales registrados")
-
-    def _signal_handler(self, signum, frame):
-        self.logger.info(f"SHUTDOWN: Señal {signum} recibida")
-        asyncio.create_task(self.shutdown(reason=f"Signal {signum}"))
-
-    async def shutdown(self, reason: str = "Manual", force: bool = False) -> bool:
-        if self.is_shutting_down:
-            self.logger.warning("SHUTDOWN: Apagado ya en progreso")
-            return False
-
-        self.is_shutting_down = True
-        self.logger.info(f"SHUTDOWN: Iniciando apagado por {reason}")
-
-        try:
-            # Cancelar tareas asíncronas
-            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-            if tasks:
-                self.logger.info(f"SHUTDOWN: Cancelando {len(tasks)} tareas...")
-                for task in tasks:
-                    task.cancel()
-                await asyncio.wait(tasks, timeout=10)
-
-            # Ejecutar hooks
-            if not force:
-                for hook in self.hooks:
-                    try:
-                        self.logger.debug(f"SHUTDOWN: Ejecutando hook {hook.name}")
-                        await asyncio.wait_for(hook.callback(), timeout=hook.timeout)
-                    except asyncio.TimeoutError:
-                        self.logger.warning(f"SHUTDOWN: Hook {hook.name} timeout")
-                    except Exception as e:
-                        self.logger.error(f"SHUTDOWN: Hook {hook.name} falló: {e}")
-
-            self.shutdown_event.set()
-            self.logger.info("SHUTDOWN: Apagado completado")
-            return True
-
-        except Exception as e:
-            self.logger.error(f"SHUTDOWN: Error durante apagado: {e}")
-            self.shutdown_event.set()
-            return False
-
-    def wait_for_shutdown(self):
-        return self.shutdown_event.wait()
+        self._shutdown_in_progress = True
+        logger.info("SHUTDOWN — Iniciando apagado graceful")
+        for hook in reversed(self._hooks):
+            try:
+                await asyncio.wait_for(hook.callback(), timeout=hook.timeout)
+                logger.info(f"SHUTDOWN — Hook '{hook.name}' completado")
+            except asyncio.TimeoutError:
+                logger.error(f"SHUTDOWN — Hook '{hook.name}' timeout ({hook.timeout}s)")
+            except Exception as e:
+                logger.error(f"SHUTDOWN — Hook '{hook.name}' falló: {e}")
+        logger.info("SHUTDOWN — Apagado completado")
