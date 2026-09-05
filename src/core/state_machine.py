@@ -1,10 +1,9 @@
-"""
-State Machine — Máquina de estados con historial de transiciones
-"""
+"""Máquina de estados del daemon con transiciones validadas."""
 from enum import Enum, auto
-from typing import Optional, Dict
-from datetime import datetime
+from typing import Set, Tuple
 from src.utils.logger import get_logger
+
+logger = get_logger("state_machine")
 
 class DaemonState(Enum):
     SLEEPING = auto()
@@ -20,37 +19,35 @@ class DaemonState(Enum):
     SHUTDOWN = auto()
 
 class StateMachine:
+    """Máquina de estados con transiciones predefinidas y logging."""
+
     def __init__(self):
-        self.logger = get_logger()
-        self._state = DaemonState.SLEEPING
-        self._history = []
-
-    def get_state(self) -> DaemonState:
-        return self._state
-
-    def get_state_name(self) -> str:
-        return self._state.name
-
-    def transition_to(self, new_state: DaemonState, data: Optional[Dict] = None) -> bool:
-        old = self._state
-        self._state = new_state
-        entry = {
-            'from': old.name,
-            'to': new_state.name,
-            'timestamp': datetime.now().isoformat(),
-            'data': data or {}
+        self.current_state = DaemonState.SLEEPING
+        self._transitions: Set[Tuple[DaemonState, DaemonState]] = {
+            (DaemonState.SLEEPING, DaemonState.WAITING_EVENT),
+            (DaemonState.WAITING_EVENT, DaemonState.SLEEPING),
+            (DaemonState.WAITING_EVENT, DaemonState.EVENT_RECEIVED),
+            (DaemonState.EVENT_RECEIVED, DaemonState.VALIDATING),
+            (DaemonState.VALIDATING, DaemonState.RISK_APPROVAL),
+            (DaemonState.RISK_APPROVAL, DaemonState.EXECUTING),
+            (DaemonState.EXECUTING, DaemonState.POSITION_ACTIVE),
+            (DaemonState.POSITION_ACTIVE, DaemonState.MONITORING),
+            (DaemonState.MONITORING, DaemonState.SLEEPING),
+            (DaemonState.MONITORING, DaemonState.CERTIFICATION),
+            (DaemonState.CERTIFICATION, DaemonState.SLEEPING),
+            (DaemonState.ERROR, DaemonState.SLEEPING),
+            (DaemonState.ERROR, DaemonState.SHUTDOWN),
+            (DaemonState.SLEEPING, DaemonState.ERROR),
+            (DaemonState.WAITING_EVENT, DaemonState.ERROR),
+            (DaemonState.EXECUTING, DaemonState.ERROR),
         }
-        self._history.append(entry)
-        # CORREGIDO: un solo argumento (f-string)
-        self.logger.info(f"STATE: {old.name} → {new_state.name}")
-        return True
 
-    def get_history(self, limit: int = 20) -> list:
-        return self._history[-limit:]
+    def transition(self, from_state: DaemonState, to_state: DaemonState) -> None:
+        if (from_state, to_state) not in self._transitions:
+            raise ValueError(f"Transición inválida: {from_state.name} → {to_state.name}")
+        old = self.current_state
+        self.current_state = to_state
+        logger.info(f"STATE: {old.name} → {to_state.name}")
 
-    def get_status(self) -> Dict:
-        return {
-            'current_state': self._state.name,
-            'last_transition': self._history[-1] if self._history else None,
-            'total_transitions': len(self._history)
-        }
+    def is_valid_transition(self, from_state: DaemonState, to_state: DaemonState) -> bool:
+        return (from_state, to_state) in self._transitions
