@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 1981 DAEMON Ω V4 — Punto de entrada principal
-Soporte: modo standalone, demo, live
+Soporte: modo standalone, demo, live con carga de configuración YAML.
 """
 import asyncio
 import argparse
@@ -52,7 +52,6 @@ async def main():
         './data/backups',
     ])
 
-    # ⚠️ CORREGIDO: AHORA USA UN SOLO ARGUMENTO
     logger.info(f"BOOT: 1981 DAEMON Ω V4 iniciando en modo {args.mode}")
 
     # Advertencia para modo live
