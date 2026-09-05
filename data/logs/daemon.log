@@ -3365,3 +3365,5 @@
 {"timestamp": "2026-09-04T23:20:54.219432Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: SLEEPING \u2192 WAITING_EVENT"}
 {"timestamp": "2026-09-04T23:20:54.236965Z", "level": "ERROR", "module": "1981_daemon", "message": "Error obteniendo runs: 401"}
 {"timestamp": "2026-09-04T23:20:54.237280Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: WAITING_EVENT \u2192 SLEEPING"}
+{"timestamp": "2026-09-05T00:14:12.192307Z", "level": "INFO", "module": "1981_daemon", "message": "BOOT: 1981 DAEMON \u03a9 V4 iniciando en modo demo"}
+{"timestamp": "2026-09-05T00:14:12.192479Z", "level": "INFO", "module": "1981_daemon", "message": "SHUTDOWN: Manejadores de se\u00f1ales registrados"}
