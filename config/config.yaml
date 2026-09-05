@@ -37,6 +37,7 @@ logging:
 
 heartbeat_interval: 60
 
+# Nueva sección retry (añadir al final)
 retry:
   enabled: true
   default_attempts: 3
