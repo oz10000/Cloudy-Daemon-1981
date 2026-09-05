@@ -1,22 +1,27 @@
-"""
-File Manager — Utilidades para manejo de archivos y directorios
-"""
+"""Utilidades para manejo de archivos y directorios."""
 import os
 from pathlib import Path
 
-def ensure_directories(dirs: list):
+def ensure_directories(dirs: list) -> None:
+    """Crea los directorios necesarios."""
     for d in dirs:
         Path(d).mkdir(parents=True, exist_ok=True)
 
-def read_yaml_file(path: str) -> dict:
-    import yaml
-    if not os.path.exists(path):
-        return {}
-    with open(path, 'r') as f:
-        return yaml.safe_load(f) or {}
+def safe_read_file(path: str) -> str:
+    """Lee un archivo de forma segura, retorna vacío si no existe."""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except (FileNotFoundError, PermissionError):
+        return ""
 
-def write_yaml_file(path: str, data: dict):
-    import yaml
-    Path(os.path.dirname(path)).mkdir(parents=True, exist_ok=True)
-    with open(path, 'w') as f:
-        yaml.dump(data, f, default_flow_style=False)
+def safe_write_file(path: str, content: str) -> bool:
+    """Escribe un archivo atómicamente."""
+    tmp_path = path + '.tmp'
+    try:
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        os.replace(tmp_path, path)
+        return True
+    except Exception:
+        return False
