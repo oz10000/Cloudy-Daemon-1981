@@ -1,6 +1,4 @@
-"""
-GitHub Artifact Provider — Descarga de artifact usando GitHub API
-"""
+"""Proveedor de artefactos desde GitHub Actions."""
 import os
 import json
 import zipfile
@@ -8,13 +6,18 @@ import tempfile
 from typing import List, Dict, Optional
 import aiohttp
 from src.utils.logger import get_logger
+from src.utils.retry import retry
+from src.utils.retry_exceptions import RetryableError
+
+logger = get_logger("github_artifact_provider")
 
 class GitHubArtifactProvider:
     def __init__(self, repo: str, token: Optional[str] = None):
         self.repo = repo
         self.token = token or os.environ.get('GH_PAT')
-        self.logger = get_logger()
+        self.logger = logger
 
+    @retry(max_attempts=3, delay=2.0, backoff=2.0, jitter=0.2, exceptions=(aiohttp.ClientError, TimeoutError, RetryableError))
     async def fetch_latest(self) -> List[Dict]:
         if not self.token:
             self.logger.warning("GH_PAT no configurado")
@@ -22,11 +25,11 @@ class GitHubArtifactProvider:
 
         async with aiohttp.ClientSession() as session:
             headers = {"Authorization": f"token {self.token}"}
-
-            # 1. Último workflow exitoso
             url = f"https://api.github.com/repos/{self.repo}/actions/runs?status=success&per_page=1"
             try:
                 async with session.get(url, headers=headers) as resp:
+                    if resp.status == 401:
+                        raise RetryableError("Token inválido o expirado (401)")
                     if resp.status != 200:
                         self.logger.error(f"Error obteniendo runs: {resp.status}")
                         return []
@@ -36,10 +39,9 @@ class GitHubArtifactProvider:
                         return []
                     run_id = runs[0]['id']
             except Exception as e:
-                self.logger.error(f"Error en API: {e}")
+                self.logger.error(f"Error en GitHub API: {e}")
                 return []
 
-            # 2. Obtener artifact
             url = f"https://api.github.com/repos/{self.repo}/actions/runs/{run_id}/artifacts"
             try:
                 async with session.get(url, headers=headers) as resp:
@@ -55,7 +57,6 @@ class GitHubArtifactProvider:
                 self.logger.error(f"Error obteniendo artifact: {e}")
                 return []
 
-            # 3. Descargar artifact
             url = f"https://api.github.com/repos/{self.repo}/actions/artifacts/{artifact_id}/zip"
             try:
                 async with session.get(url, headers=headers) as resp:
@@ -66,12 +67,10 @@ class GitHubArtifactProvider:
                 self.logger.error(f"Error descargando artifact: {e}")
                 return []
 
-            # 4. Extraer signals.json
             try:
                 with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp:
                     tmp.write(zip_data)
                     tmp_path = tmp.name
-
                 signals = []
                 with zipfile.ZipFile(tmp_path, 'r') as zf:
                     for name in zf.namelist():
