@@ -6226,3 +6226,9 @@
 {"timestamp": "2026-09-05T18:19:03.644636Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: WAITING_EVENT \u2192 SLEEPING"}
 {"timestamp": "2026-09-05T18:19:33.670680Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: SLEEPING \u2192 WAITING_EVENT"}
 {"timestamp": "2026-09-05T18:19:34.625827Z", "level": "INFO", "module": "1981_daemon", "message": "STATE: WAITING_EVENT \u2192 SLEEPING"}
+2026-09-05 23:17:31,799 | INFO     | 1981_daemon     | BOOT: 1981 DAEMON Ω V4 iniciando en modo demo
+2026-09-05 23:17:31,800 | INFO     | 1981_daemon.shutdown_manager | SHUTDOWN — Hook 'save_state' registrado
+2026-09-05 23:17:31,809 | INFO     | 1981_daemon.daemon | Exchange: simulator
+2026-09-05 23:17:31,809 | INFO     | 1981_daemon.daemon | Leverage: 1X
+2026-09-05 23:17:31,809 | INFO     | 1981_daemon.daemon | Capital usage: 100.0%
+2026-09-05 23:17:31,809 | INFO     | 1981_daemon.daemon | Max positions: 1
