@@ -34,7 +34,7 @@ class SnapshotManager:
     async def load_latest_snapshot(self) -> Optional[Dict]:
         state = await self.store.load_state()
         if state:
-            # CORREGIDO: se usa un solo argumento en logger
+            # CORREGIDO: un solo argumento
             self.logger.info(f"SNAPSHOT: Snapshot cargado desde SQLite (timestamp: {state.get('timestamp')})")
             return state
         latest = await self.backup.load_latest()
