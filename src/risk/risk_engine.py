@@ -1,30 +1,49 @@
-"""
-Risk Engine — Validación de riesgo (posición única, límites)
-"""
+"""Gestión de riesgo y dimensionamiento de posiciones."""
 from typing import Dict, Any
 from src.utils.logger import get_logger
 
+logger = get_logger("risk_engine")
+
 class RiskEngine:
-    def __init__(self, config: Dict, position_manager):
-        self.config = config
-        self.position_manager = position_manager
-        self.logger = get_logger()
-        self.max_positions = config.get('max_positions', 1)
-        self.risk_per_trade = config.get('risk_per_trade', 0.02)
+    def __init__(self,
+                 max_risk_per_trade: float = 0.02,
+                 max_position_size: float = 1000.0,
+                 default_leverage: int = 1):
+        """
+        Inicializa el motor de riesgo.
+        
+        :param max_risk_per_trade: Riesgo máximo por operación (fracción del capital).
+        :param max_position_size: Tamaño máximo de posición en USDT.
+        :param default_leverage: Apalancamiento por defecto.
+        """
+        self.max_risk_per_trade = max_risk_per_trade
+        self.max_position_size = max_position_size
+        self.default_leverage = default_leverage
+        self.logger = logger
 
-    def can_open_position(self, signal: Dict) -> bool:
-        open_positions = self.position_manager.get_open()
-        if len(open_positions) >= self.max_positions:
-            self.logger.warning(f"Límite de posiciones alcanzado ({self.max_positions})")
-            return False
-        return True
+    async def calculate_size(self, symbol: str, confidence: float, leverage: int = None) -> float:
+        """
+        Calcula el tamaño de la posición basado en riesgo y confianza.
+        
+        :param symbol: Símbolo (no usado en este cálculo básico).
+        :param confidence: Confianza de la señal (0-1).
+        :param leverage: Apalancamiento (si no se proporciona, usa el default).
+        :return: Tamaño de la posición.
+        """
+        leverage = leverage or self.default_leverage
+        base = 100.0 * confidence * leverage
+        size = min(base, self.max_position_size)
+        self.logger.info(f"RISK — Tamaño calculado para {symbol}: {size} (confianza {confidence})")
+        return size
 
-    def calculate_size(self, capital: float, entry: float, stop_loss: float) -> float:
-        if stop_loss <= 0 or entry <= 0:
-            return 0.0
-        risk_amount = capital * self.risk_per_trade
-        risk_per_unit = abs(entry - stop_loss) / entry
-        if risk_per_unit <= 0:
-            return 0.0
-        size = risk_amount / (risk_per_unit * entry)
-        return round(size, 3)
+    async def get_max_risk(self) -> float:
+        """Retorna el riesgo máximo por operación."""
+        return self.max_risk_per_trade
+
+    async def get_max_position_size(self) -> float:
+        """Retorna el tamaño máximo de posición."""
+        return self.max_position_size
+
+    async def get_default_leverage(self) -> int:
+        """Retorna el apalancamiento por defecto."""
+        return self.default_leverage
