@@ -180,7 +180,9 @@ class Daemon1981:
         await self._restore_state()
         self.running = True
         self.logger.info("Daemon iniciado (event-driven)")
-        self.state_machine.transition(DaemonState.SLEEPING, DaemonState.SLEEPING)
+
+        # El estado inicial ya es SLEEPING, no se necesita transición a sí mismo.
+        # self.state_machine.transition(DaemonState.SLEEPING, DaemonState.SLEEPING)  # ← ELIMINADO
 
         while self.running:
             try:
