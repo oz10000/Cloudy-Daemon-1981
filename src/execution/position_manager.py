@@ -34,7 +34,6 @@ class PositionManager:
         self.positions: Dict[str, Position] = {}
         self.logger = get_logger()
 
-    # CORREGIDO: se eliminó el argumento directo trailing_distance y se lee desde metadata
     async def add(self, symbol: str, direction: str, amount: float,
                   entry_price: float, tp: float = 0.0, sl: float = 0.0,
                   metadata: Optional[Dict] = None) -> Position:
@@ -52,6 +51,7 @@ class PositionManager:
             lowest_price=entry_price,
             metadata=metadata or {}
         )
+        # Leer trailing_distance desde metadata
         if metadata and 'trailing_distance' in metadata:
             position.trailing_distance = metadata['trailing_distance']
         if metadata and 'trailing_activation' in metadata:
