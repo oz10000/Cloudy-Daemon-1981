@@ -1,27 +1,24 @@
-"""Logger centralizado con formato unificado y rotación."""
 import logging
 import sys
 from typing import Dict, Any, Optional
+import logging.handlers  # Importar explícitamente para evitar conflictos
 
 _LOGGERS = {}
 
 def setup_logger(config: Dict[str, Any]) -> logging.Logger:
-    """Configura el logger global con rotación de archivos."""
+    """Configura el logger global con rotación."""
     level = config.get('level', 'INFO').upper()
     log_file = config.get('file', './data/logs/daemon.log')
     console = config.get('console', True)
     log_format = config.get('format', 'console')
 
-    # Usar el nombre completo para evitar conflictos con la variable local
-    logger = logging.getLogger('1981_daemon')
-    logger.setLevel(getattr(logging, level, logging.INFO))
-
-    # Limpiar handlers existentes
-    logger.handlers.clear()
+    # Crear logger raíz
+    root_logger = logging.getLogger('1981_daemon')
+    root_logger.setLevel(getattr(logging, level, logging.INFO))
+    root_logger.handlers.clear()
 
     # Handler de archivo con rotación
     if log_file:
-        import logging.handlers
         fh = logging.handlers.RotatingFileHandler(
             log_file, maxBytes=10485760, backupCount=5
         )
@@ -33,25 +30,24 @@ def setup_logger(config: Dict[str, Any]) -> logging.Logger:
             fh.setFormatter(logging.Formatter(
                 '%(asctime)s | %(levelname)-8s | %(name)-15s | %(message)s'
             ))
-        logger.addHandler(fh)
+        root_logger.addHandler(fh)
 
-    # Handler de consola
     if console:
         ch = logging.StreamHandler(sys.stdout)
         ch.setFormatter(logging.Formatter(
             '%(asctime)s | %(levelname)-8s | %(name)-15s | %(message)s'
         ))
-        logger.addHandler(ch)
+        root_logger.addHandler(ch)
 
-    logger.propagate = False
-    _LOGGERS['root'] = logger
-    return logger
+    root_logger.propagate = False
+    _LOGGERS['root'] = root_logger
+    return root_logger
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:
     """Obtiene un logger hijo del logger raíz."""
     root = _LOGGERS.get('root')
     if root is None:
-        # Fallback: crear un logger básico
+        # Fallback: configurar básico
         root = logging.getLogger('1981_daemon')
         root.setLevel(logging.INFO)
         ch = logging.StreamHandler(sys.stdout)
