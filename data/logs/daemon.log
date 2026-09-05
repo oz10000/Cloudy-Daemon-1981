@@ -6238,3 +6238,9 @@
 2026-09-05 23:20:43,486 | INFO     | 1981_daemon.daemon | Leverage: 1X
 2026-09-05 23:20:43,486 | INFO     | 1981_daemon.daemon | Capital usage: 100.0%
 2026-09-05 23:20:43,486 | INFO     | 1981_daemon.daemon | Max positions: 1
+2026-09-05 23:23:45,048 | INFO     | 1981_daemon     | BOOT: 1981 DAEMON Ω V4 iniciando en modo demo
+2026-09-05 23:23:45,049 | INFO     | 1981_daemon.shutdown_manager | SHUTDOWN — Hook 'save_state' registrado
+2026-09-05 23:23:45,051 | INFO     | 1981_daemon.daemon | Exchange: simulator
+2026-09-05 23:23:45,051 | INFO     | 1981_daemon.daemon | Leverage: 1X
+2026-09-05 23:23:45,051 | INFO     | 1981_daemon.daemon | Capital usage: 100.0%
+2026-09-05 23:23:45,052 | INFO     | 1981_daemon.daemon | Max positions: 1
