@@ -23,6 +23,44 @@ class SimulatorExchange(ExchangeAdapter):
         self.latency_ms = config.get('latency_ms', 10)
         self._running = True
 
+    # ─── Propiedades abstractas ──────────────────────────────────────────────
+    @property
+    def name(self) -> str:
+        return "simulator"
+
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+
+    # ─── Métodos abstractos ──────────────────────────────────────────────────
+    async def health(self) -> Dict[str, Any]:
+        """Retorna el estado de salud del simulador."""
+        health = await self.health_check()
+        return {
+            "status": "ok" if health.is_connected else "error",
+            "latency_ms": health.latency_ms,
+            "is_connected": health.is_connected
+        }
+
+    async def start(self) -> bool:
+        """Inicia el simulador (no hace nada, ya está listo)."""
+        self._running = True
+        return True
+
+    async def stop(self) -> bool:
+        """Detiene el simulador."""
+        await self.close()
+        return True
+
+    async def test(self) -> Dict[str, Any]:
+        """Prueba básica del simulador."""
+        try:
+            price = await self.get_price("BTCUSDT")
+            return {"passed": True, "message": f"Test OK, price={price}"}
+        except Exception as e:
+            return {"passed": False, "message": str(e)}
+
+    # ─── Métodos de ExchangeAdapter ──────────────────────────────────────────
     async def _simulate_latency(self):
         await asyncio.sleep(self.latency_ms / 1000)
 
@@ -80,7 +118,7 @@ class SimulatorExchange(ExchangeAdapter):
             'price': execution_price,
             'status': 'FILLED',
             'filled': amount,
-            'avgPrice': execution_price,  # CORREGIDO: siempre presente
+            'avgPrice': execution_price,
             'created_at': datetime.now().isoformat()
         }
         self.orders.append(order)
