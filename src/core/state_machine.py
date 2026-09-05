@@ -28,6 +28,8 @@ class StateMachine:
             (DaemonState.WAITING_EVENT, DaemonState.SLEEPING),
             (DaemonState.WAITING_EVENT, DaemonState.EVENT_RECEIVED),
             (DaemonState.EVENT_RECEIVED, DaemonState.VALIDATING),
+            # ✅ AÑADIDA: transición directa a SLEEPING después de procesar
+            (DaemonState.EVENT_RECEIVED, DaemonState.SLEEPING),
             (DaemonState.VALIDATING, DaemonState.RISK_APPROVAL),
             (DaemonState.RISK_APPROVAL, DaemonState.EXECUTING),
             (DaemonState.EXECUTING, DaemonState.POSITION_ACTIVE),
