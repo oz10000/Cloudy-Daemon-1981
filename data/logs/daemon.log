@@ -6265,3 +6265,36 @@ Traceback (most recent call last):
   File "/home/runner/work/Cloudy-Daemon-1981/Cloudy-Daemon-1981/src/core/state_machine.py", line 47, in transition
     raise ValueError(f"Transición inválida: {from_state.name} → {to_state.name}")
 ValueError: Transición inválida: SLEEPING → SLEEPING
+2026-09-06 05:31:14,761 | INFO     | 1981_daemon     | BOOT: 1981 DAEMON Ω V4 iniciando en modo demo
+2026-09-06 05:31:14,761 | INFO     | 1981_daemon.shutdown_manager | SHUTDOWN — Hook 'save_state' registrado
+2026-09-06 05:31:14,763 | INFO     | 1981_daemon.daemon | Exchange: simulator
+2026-09-06 05:31:14,763 | INFO     | 1981_daemon.daemon | Leverage: 1X
+2026-09-06 05:31:14,763 | INFO     | 1981_daemon.daemon | Capital usage: 100.0%
+2026-09-06 05:31:14,764 | INFO     | 1981_daemon.daemon | Max positions: 1
+2026-09-06 05:31:14,764 | INFO     | 1981_daemon     | Tiers cargados: {'S-TIER', 'A-TIER'}
+2026-09-06 05:31:14,765 | INFO     | 1981_daemon.recovery | RECOVERY — Intentando recuperar estado
+2026-09-06 05:31:14,765 | INFO     | 1981_daemon.snapshot_manager | SNAPSHOT — Snapshot cargado (timestamp: 2026-09-01T15:45:25.738918)
+2026-09-06 05:31:14,766 | INFO     | 1981_daemon.recovery | RECOVERY — Estado recuperado: 2026-09-01T15:45:25.738918
+2026-09-06 05:31:14,766 | INFO     | 1981_daemon.daemon | Estado restaurado: 0 posiciones
+2026-09-06 05:31:14,766 | INFO     | 1981_daemon.daemon | Daemon iniciado (event-driven)
+2026-09-06 05:31:14,766 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-06 05:31:15,931 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-06 05:31:15,931 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-06 05:31:15,931 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-06 05:31:15,932 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 0 de 10
+2026-09-06 05:31:15,932 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-06 05:31:16,432 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-06 05:50:44,690 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-06 05:50:44,690 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-06 05:50:44,690 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-06 05:50:44,690 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 1 de 10
+2026-09-06 05:50:44,690 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: LINK/USDT LONG (confianza=88.94976395553992)
+2026-09-06 05:50:44,701 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para LINK/USDT: 1000.0 (confianza 88.94976395553992)
+2026-09-06 05:50:44,711 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-06 05:50:45,212 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-06 09:43:49,462 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-06 09:43:49,463 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-06 09:43:49,463 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-06 09:43:49,463 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 0 de 10
+2026-09-06 09:43:49,463 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-06 09:43:49,964 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
