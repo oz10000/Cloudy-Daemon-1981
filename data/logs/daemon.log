@@ -6550,3 +6550,46 @@ ValueError: Transición inválida: SLEEPING → SLEEPING
 2026-09-10 09:08:04,215 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 0 de 10
 2026-09-10 09:08:04,215 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
 2026-09-10 09:08:04,716 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-10 17:38:47,920 | INFO     | 1981_daemon     | BOOT: 1981 DAEMON Ω V4 iniciando en modo demo
+2026-09-10 17:38:47,920 | INFO     | 1981_daemon.shutdown_manager | SHUTDOWN — Hook 'save_state' registrado
+2026-09-10 17:38:47,922 | INFO     | 1981_daemon.daemon | Exchange: simulator
+2026-09-10 17:38:47,922 | INFO     | 1981_daemon.daemon | Leverage: 1X
+2026-09-10 17:38:47,923 | INFO     | 1981_daemon.daemon | Capital usage: 100.0%
+2026-09-10 17:38:47,923 | INFO     | 1981_daemon.daemon | Max positions: 1
+2026-09-10 17:38:47,923 | INFO     | 1981_daemon     | Tiers cargados: {'S-TIER', 'A-TIER'}
+2026-09-10 17:38:47,924 | INFO     | 1981_daemon.recovery | RECOVERY — Intentando recuperar estado
+2026-09-10 17:38:47,924 | INFO     | 1981_daemon.snapshot_manager | SNAPSHOT — Snapshot cargado (timestamp: 2026-09-01T15:45:25.738918)
+2026-09-10 17:38:47,924 | INFO     | 1981_daemon.recovery | RECOVERY — Estado recuperado: 2026-09-01T15:45:25.738918
+2026-09-10 17:38:47,925 | INFO     | 1981_daemon.daemon | Estado restaurado: 0 posiciones
+2026-09-10 17:38:47,925 | INFO     | 1981_daemon.daemon | Daemon iniciado (event-driven)
+2026-09-10 17:38:47,925 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-10 17:38:48,891 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-10 17:38:48,892 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-10 17:38:48,892 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-10 17:38:48,892 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 3 de 10
+2026-09-10 17:38:48,892 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: DOT/USDT LONG (confianza=87.68084454058179)
+2026-09-10 17:38:48,902 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para DOT/USDT: 1000.0 (confianza 87.68084454058179)
+2026-09-10 17:38:48,913 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: AVAX/USDT LONG (confianza=99.40043222560574)
+2026-09-10 17:38:48,923 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para AVAX/USDT: 1000.0 (confianza 99.40043222560574)
+2026-09-10 17:38:48,933 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: ATOM/USDT LONG (confianza=99.88479826958505)
+2026-09-10 17:38:48,943 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para ATOM/USDT: 1000.0 (confianza 99.88479826958505)
+2026-09-10 17:38:48,954 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-10 17:38:49,455 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-10 19:40:12,919 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-10 19:40:12,919 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-10 19:40:12,919 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-10 19:40:12,919 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 0 de 10
+2026-09-10 19:40:12,919 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-10 19:40:13,420 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-10 21:54:54,112 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-10 21:54:54,112 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-10 21:54:54,112 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-10 21:54:54,112 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 0 de 10
+2026-09-10 21:54:54,112 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-10 21:54:54,613 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-10 23:36:57,683 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-10 23:36:57,683 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-10 23:36:57,683 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-10 23:36:57,683 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 0 de 10
+2026-09-10 23:36:57,683 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-10 23:36:58,184 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
