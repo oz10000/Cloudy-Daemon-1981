@@ -6826,3 +6826,52 @@ ValueError: Transición inválida: SLEEPING → SLEEPING
 2026-09-14 06:57:22,201 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 0 de 10
 2026-09-14 06:57:22,201 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
 2026-09-14 06:57:22,702 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-14 19:43:14,861 | INFO     | 1981_daemon     | BOOT: 1981 DAEMON Ω V4 iniciando en modo demo
+2026-09-14 19:43:14,861 | INFO     | 1981_daemon.shutdown_manager | SHUTDOWN — Hook 'save_state' registrado
+2026-09-14 19:43:14,863 | INFO     | 1981_daemon.daemon | Exchange: simulator
+2026-09-14 19:43:14,863 | INFO     | 1981_daemon.daemon | Leverage: 1X
+2026-09-14 19:43:14,863 | INFO     | 1981_daemon.daemon | Capital usage: 100.0%
+2026-09-14 19:43:14,863 | INFO     | 1981_daemon.daemon | Max positions: 1
+2026-09-14 19:43:14,864 | INFO     | 1981_daemon     | Tiers cargados: {'S-TIER', 'A-TIER'}
+2026-09-14 19:43:14,865 | INFO     | 1981_daemon.recovery | RECOVERY — Intentando recuperar estado
+2026-09-14 19:43:14,865 | INFO     | 1981_daemon.snapshot_manager | SNAPSHOT — Snapshot cargado (timestamp: 2026-09-01T15:45:25.738918)
+2026-09-14 19:43:14,865 | INFO     | 1981_daemon.recovery | RECOVERY — Estado recuperado: 2026-09-01T15:45:25.738918
+2026-09-14 19:43:14,866 | INFO     | 1981_daemon.daemon | Estado restaurado: 0 posiciones
+2026-09-14 19:43:14,866 | INFO     | 1981_daemon.daemon | Daemon iniciado (event-driven)
+2026-09-14 19:43:14,866 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-14 19:43:16,401 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-14 19:43:16,401 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-14 19:43:16,401 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-14 19:43:16,401 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 2 de 10
+2026-09-14 19:43:16,401 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: XRP/USDT LONG (confianza=100)
+2026-09-14 19:43:16,411 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para XRP/USDT: 1000.0 (confianza 100)
+2026-09-14 19:43:16,434 | INFO     | 1981_daemon.position_manager | POSITION — Posición None abierta para XRP/USDT
+2026-09-14 19:43:16,455 | INFO     | 1981_daemon.execution_engine | Posición abierta: None @ 1.4751
+2026-09-14 19:43:16,455 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: ATOM/USDT LONG (confianza=100)
+2026-09-14 19:43:16,465 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para ATOM/USDT: 1000.0 (confianza 100)
+2026-09-14 19:43:16,475 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-14 19:43:16,976 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-14 22:09:45,997 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-14 22:09:45,997 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-14 22:09:45,997 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-14 22:09:45,997 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 4 de 10
+2026-09-14 22:09:45,997 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: SOL/USDT SHORT (confianza=100)
+2026-09-14 22:09:46,007 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para SOL/USDT: 1000.0 (confianza 100)
+2026-09-14 22:09:46,018 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: ADA/USDT SHORT (confianza=94.12559940141226)
+2026-09-14 22:09:46,028 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para ADA/USDT: 1000.0 (confianza 94.12559940141226)
+2026-09-14 22:09:46,039 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: AVAX/USDT SHORT (confianza=79.28897799361958)
+2026-09-14 22:09:46,049 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para AVAX/USDT: 1000.0 (confianza 79.28897799361958)
+2026-09-14 22:09:46,059 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: UNI/USDT SHORT (confianza=97.69103397505256)
+2026-09-14 22:09:46,070 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para UNI/USDT: 1000.0 (confianza 97.69103397505256)
+2026-09-14 22:09:46,080 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-14 22:09:46,581 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-15 00:37:14,320 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-15 00:37:14,320 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-15 00:37:14,321 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-15 00:37:14,321 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 1 de 10
+2026-09-15 00:37:14,321 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: BTC/USDT SHORT (confianza=92.68078770890837)
+2026-09-15 00:37:14,331 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para BTC/USDT: 1000.0 (confianza 92.68078770890837)
+2026-09-15 00:37:14,343 | INFO     | 1981_daemon.position_manager | POSITION — Posición None abierta para BTC/USDT
+2026-09-15 00:37:14,363 | INFO     | 1981_daemon.execution_engine | Posición abierta: None @ 78042.5
+2026-09-15 00:37:14,364 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-15 00:37:14,864 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
