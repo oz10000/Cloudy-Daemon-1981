@@ -7405,3 +7405,39 @@ ValueError: Transición inválida: SLEEPING → SLEEPING
 2026-09-23 00:57:50,708 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 0 de 10
 2026-09-23 00:57:50,708 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
 2026-09-23 00:57:51,209 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-23 08:01:04,924 | INFO     | 1981_daemon     | BOOT: 1981 DAEMON Ω V4 iniciando en modo demo
+2026-09-23 08:01:04,925 | INFO     | 1981_daemon.shutdown_manager | SHUTDOWN — Hook 'save_state' registrado
+2026-09-23 08:01:04,927 | INFO     | 1981_daemon.daemon | Exchange: simulator
+2026-09-23 08:01:04,927 | INFO     | 1981_daemon.daemon | Leverage: 1X
+2026-09-23 08:01:04,927 | INFO     | 1981_daemon.daemon | Capital usage: 100.0%
+2026-09-23 08:01:04,927 | INFO     | 1981_daemon.daemon | Max positions: 1
+2026-09-23 08:01:04,928 | INFO     | 1981_daemon     | Tiers cargados: {'S-TIER', 'A-TIER'}
+2026-09-23 08:01:04,929 | INFO     | 1981_daemon.recovery | RECOVERY — Intentando recuperar estado
+2026-09-23 08:01:04,929 | INFO     | 1981_daemon.snapshot_manager | SNAPSHOT — Snapshot cargado (timestamp: 2026-09-01T15:45:25.738918)
+2026-09-23 08:01:04,929 | INFO     | 1981_daemon.recovery | RECOVERY — Estado recuperado: 2026-09-01T15:45:25.738918
+2026-09-23 08:01:04,929 | INFO     | 1981_daemon.daemon | Estado restaurado: 0 posiciones
+2026-09-23 08:01:04,929 | INFO     | 1981_daemon.daemon | Daemon iniciado (event-driven)
+2026-09-23 08:01:04,930 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-23 08:01:05,948 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-23 08:01:05,948 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-23 08:01:05,949 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-23 08:01:05,949 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 1 de 10
+2026-09-23 08:01:05,949 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: XRP/USDT LONG (confianza=82.67650043017264)
+2026-09-23 08:01:05,959 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para XRP/USDT: 1000.0 (confianza 82.67650043017264)
+2026-09-23 08:01:05,996 | INFO     | 1981_daemon.position_manager | POSITION — Posición None abierta para XRP/USDT
+2026-09-23 08:01:06,016 | INFO     | 1981_daemon.execution_engine | Posición abierta: None @ 1.6166
+2026-09-23 08:01:06,016 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-23 08:01:06,517 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-23 10:15:19,444 | INFO     | 1981_daemon.signal_watcher | Nuevas señales detectadas: 10
+2026-09-23 10:15:19,444 | INFO     | 1981_daemon.daemon | Señales recibidas: 10
+2026-09-23 10:15:19,444 | INFO     | 1981_daemon.state_machine | STATE: WAITING_EVENT → EVENT_RECEIVED
+2026-09-23 10:15:19,444 | INFO     | 1981_daemon     | Señales después de filtro de tiers: 1 de 10
+2026-09-23 10:15:19,444 | INFO     | 1981_daemon.execution_engine | EXEC — Ejecutando: XRP/USDT SHORT (confianza=98.68118263270314)
+2026-09-23 10:15:19,454 | INFO     | 1981_daemon.risk_engine | RISK — Tamaño calculado para XRP/USDT: 1000.0 (confianza 98.68118263270314)
+2026-09-23 10:15:19,467 | INFO     | 1981_daemon.position_manager | POSITION — Posición None abierta para XRP/USDT
+2026-09-23 10:15:19,487 | INFO     | 1981_daemon.execution_engine | Posición abierta: None @ 1.5895
+2026-09-23 10:15:19,487 | INFO     | 1981_daemon.state_machine | STATE: EVENT_RECEIVED → SLEEPING
+2026-09-23 10:15:19,988 | INFO     | 1981_daemon.state_machine | STATE: SLEEPING → WAITING_EVENT
+2026-09-23 10:46:30,972 | ERROR    | 1981_daemon.github_artifact_provider | Error obteniendo runs: 502
+2026-09-23 13:42:36,258 | ERROR    | 1981_daemon.github_artifact_provider | Error obteniendo runs: 502
+2026-09-23 13:43:09,382 | ERROR    | 1981_daemon.github_artifact_provider | Error obteniendo runs: 502
